@@ -1,99 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Explore the award-winning Agentic CLI technology with persistent memory, multi-agent coordination, and transformative industry applications">
-    <meta name="keywords" content="agentic-cli, ai-agents, persistent-memory, automation, developer-tools, multi-agent-systems">
-    <meta property="og:title" content="Agentic CLI: The Future of AI-Powered Development">
-    <meta property="og:description" content="Discover how Agentic CLI revolutionizes software development with intelligent agents, persistent memory, and cross-industry automation">
-    <meta property="og:type" content="website">
-    <meta property="og:image" content="/images/hero-social.jpg">
-    
-    <title>Agentic CLI | Award-Winning AI Agent Technology</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <style>
-        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        #root { width: 100%; min-height: 100vh; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .hero { text-align: center; padding: 60px 0; }
-        .hero h1 { font-size: 3rem; margin-bottom: 20px; }
-        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; padding: 40px 0; }
-        .feature-card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 30px; text-align: center; }
-        .feature-icon { font-size: 3rem; margin-bottom: 20px; }
-    </style>
-</head>
-<body>
-    <div id="root">
-        <div class="container">
-            <div class="hero">
-                <h1>🚀 Agentic CLI</h1>
-                <p>AI-Powered Development with Persistent Memory</p>
-            </div>
-            
-            <div class="features">
-                <div class="feature-card">
-                    <div class="feature-icon">🧠</div>
-                    <h3>Persistent Memory</h3>
-                    <p>AI agents that remember and learn from interactions</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">🤖</div>
-                    <h3>Multi-Agent Coordination</h3>
-                    <p>Seamless collaboration between specialized AI agents</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Real-time Terminal</h3>
-                    <p>Interactive command-line interface with AI assistance</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>Interactive Dashboards</h3>
-                    <p>Real-time monitoring and visualization of AI workflows</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">🌐</div>
-                    <h3>Cross-Industry</h3>
-                    <p>Applications spanning healthcare, finance, and more</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">🔧</div>
-                    <h3>Developer Tools</h3>
-                    <p>Enhanced productivity with intelligent code assistance</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        // Simple React-like interactivity
-        document.addEventListener('DOMContentLoaded', function() {
-            const cards = document.querySelectorAll('.feature-card');
-            cards.forEach((card, index) => {
-                setTimeout(() => {
-                    card.style.opacity = '0';
-                    card.style.transform = 'translateY(20px)';
-                    card.style.transition = 'all 0.6s ease';
-                    
-                    setTimeout(() => {
-                        card.style.opacity = '1';
-                        card.style.transform = 'translateY(0)';
-                    }, 100);
-                }, index * 100);
-            });
-        });
-    </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neural Clash | Strategic AI Battle Arena</title>
+    <meta name="description" content="Battle an AI opponent in a stunning 3D arena. Choose your actions, outsmart ARIA, and prove humanity's worth in Neural Clash." />
+    <meta property="og:title" content="Neural Clash - Strategic AI Battle Arena" />
+    <meta property="og:description" content="Challenge ARIA, a sassy AI, to a strategic duel in a beautiful 3D arena. Built with Three.js and WebGPU." />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#0a0a1a" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>" />
+  </head>
+  <body>
+    <canvas id="game-canvas"></canvas>
+    <div id="ui-layer"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>

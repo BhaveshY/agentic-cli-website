@@ -2,7 +2,7 @@
 
 ## Cursor Cloud specific instructions
 
-This is a single-file static HTML project (`index.html`) — a landing page for "Agentic CLI". There is no package manager, build system, or test framework.
+This is a single-file static HTML project (`index.html`) — an interactive learning platform for harness engineering in agentic systems. There is no package manager, build system, or test framework.
 
 ### Serving the app
 

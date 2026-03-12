@@ -17,10 +17,10 @@ export class SceneSetup {
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x87ceeb);
-    this.scene.fog = new THREE.Fog(0x87ceeb, 60, 120);
+    this.scene.background = new THREE.Color(0x7ec8e3);
+    this.scene.fog = new THREE.Fog(0x9ad4e8, 50, 110);
 
-    this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.5, 200);
+    this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 200);
     this.updateCameraPosition();
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -29,7 +29,7 @@ export class SceneSetup {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = 1.3;
 
     this.setupLighting();
     this.setupSky();
@@ -42,25 +42,30 @@ export class SceneSetup {
   }
 
   private setupLighting(): void {
-    const hemi = new THREE.HemisphereLight(0x88bbff, 0x445522, 0.6);
+    const hemi = new THREE.HemisphereLight(0x9dc4ff, 0x5a8a3c, 0.7);
     this.scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xfff4e6, 1.4);
-    sun.position.set(30, 50, 20);
+    const sun = new THREE.DirectionalLight(0xffeedd, 1.8);
+    sun.position.set(25, 45, 15);
     sun.castShadow = true;
     sun.shadow.mapSize.set(4096, 4096);
     sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = 120;
-    sun.shadow.camera.left = -60;
-    sun.shadow.camera.right = 60;
-    sun.shadow.camera.top = 60;
-    sun.shadow.camera.bottom = -60;
-    sun.shadow.bias = -0.001;
+    sun.shadow.camera.far = 130;
+    sun.shadow.camera.left = -65;
+    sun.shadow.camera.right = 65;
+    sun.shadow.camera.top = 65;
+    sun.shadow.camera.bottom = -65;
+    sun.shadow.bias = -0.0005;
+    sun.shadow.normalBias = 0.02;
     this.scene.add(sun);
 
-    const fill = new THREE.DirectionalLight(0x6688cc, 0.3);
-    fill.position.set(-20, 20, -10);
+    const fill = new THREE.DirectionalLight(0x88aadd, 0.4);
+    fill.position.set(-25, 15, -15);
     this.scene.add(fill);
+
+    const rim = new THREE.DirectionalLight(0xffd4a0, 0.25);
+    rim.position.set(-10, 8, 30);
+    this.scene.add(rim);
   }
 
   private setupSky(): void {
@@ -68,8 +73,8 @@ export class SceneSetup {
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        topColor: { value: new THREE.Color(0x4488cc) },
-        bottomColor: { value: new THREE.Color(0xc8dde8) },
+        topColor: { value: new THREE.Color(0x3b7ec8) },
+        bottomColor: { value: new THREE.Color(0xd4e8f0) },
       },
       vertexShader: `
         varying vec3 vWorldPos;

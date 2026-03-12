@@ -81,78 +81,143 @@ export class EntityRenderer {
     this.buildingVisuals.set(building.id, { group, healthBar, healthBg, selectionRing });
   }
 
+  private addLegs(g: THREE.Group, mat: THREE.Material, y: number): void {
+    const legGeo = new THREE.BoxGeometry(0.1, 0.35, 0.12);
+    const leftLeg = new THREE.Mesh(legGeo, mat);
+    leftLeg.position.set(-0.1, y, 0);
+    g.add(leftLeg);
+    const rightLeg = new THREE.Mesh(legGeo, mat);
+    rightLeg.position.set(0.1, y, 0);
+    g.add(rightLeg);
+  }
+
+  private addArms(g: THREE.Group, mat: THREE.Material, y: number, w: number): void {
+    const armGeo = new THREE.BoxGeometry(0.08, 0.3, 0.1);
+    const leftArm = new THREE.Mesh(armGeo, mat);
+    leftArm.position.set(-w, y, 0);
+    g.add(leftArm);
+    const rightArm = new THREE.Mesh(armGeo, mat);
+    rightArm.position.set(w, y, 0);
+    g.add(rightArm);
+  }
+
   private buildUnitMesh(type: UnitType, colors: { primary: number; secondary: number; accent: number }): THREE.Group {
     const g = new THREE.Group();
-    const pri = new THREE.MeshStandardMaterial({ color: colors.primary, roughness: 0.5, metalness: 0.3, flatShading: true });
-    const sec = new THREE.MeshStandardMaterial({ color: colors.secondary, roughness: 0.5, metalness: 0.3, flatShading: true });
-    const acc = new THREE.MeshStandardMaterial({ color: colors.accent, roughness: 0.3, metalness: 0.5, flatShading: true });
+    const pri = new THREE.MeshStandardMaterial({ color: colors.primary, roughness: 0.45, metalness: 0.2, flatShading: true });
+    const sec = new THREE.MeshStandardMaterial({ color: colors.secondary, roughness: 0.45, metalness: 0.2, flatShading: true });
+    const acc = new THREE.MeshStandardMaterial({ color: colors.accent, roughness: 0.25, metalness: 0.4, flatShading: true });
+    const skin = new THREE.MeshStandardMaterial({ color: 0xe8c4a0, roughness: 0.7 });
+    const metal = new THREE.MeshStandardMaterial({ color: 0xd0d0d0, metalness: 0.85, roughness: 0.2, flatShading: true });
 
     switch (type) {
       case UnitType.WORKER: {
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.45, 0.25), pri);
-        body.position.y = 0.4;
+        this.addLegs(g, sec, 0.18);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.38, 0.22), pri);
+        body.position.y = 0.55;
         body.castShadow = true;
         g.add(body);
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), sec);
-        head.position.y = 0.75;
+        this.addArms(g, skin, 0.5, 0.24);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 5), skin);
+        head.position.y = 0.88;
         g.add(head);
-        const tool = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.35, 0.06), acc);
-        tool.position.set(0.25, 0.5, 0);
-        tool.rotation.z = 0.3;
-        g.add(tool);
+        const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.08, 6), sec);
+        hat.position.y = 1.0;
+        g.add(hat);
+        const pickHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.45, 4), new THREE.MeshStandardMaterial({ color: 0x8B5A2B }));
+        pickHandle.position.set(0.28, 0.6, 0);
+        pickHandle.rotation.z = 0.5;
+        g.add(pickHandle);
+        const pickHead = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.06, 0.04), metal);
+        pickHead.position.set(0.38, 0.82, 0);
+        g.add(pickHead);
         break;
       }
       case UnitType.SWORDSMAN: {
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 0.3), pri);
-        body.position.y = 0.45;
+        this.addLegs(g, sec, 0.18);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.24), pri);
+        body.position.y = 0.58;
         body.castShadow = true;
         g.add(body);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 6, 4), sec);
-        head.position.y = 0.85;
+        const armor = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.2, 0.26), acc);
+        armor.position.y = 0.68;
+        g.add(armor);
+        this.addArms(g, pri, 0.55, 0.26);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 5), skin);
+        head.position.y = 0.93;
         g.add(head);
-        const helmet = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.15, 4), acc);
-        helmet.position.y = 1.0;
+        const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.15, 5, 4, 0, Math.PI * 2, 0, Math.PI / 2), acc);
+        helmet.position.y = 0.93;
         g.add(helmet);
-        const sword = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.5, 0.04), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 }));
-        sword.position.set(0.3, 0.5, 0);
+        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.04, 0.16), acc);
+        visor.position.set(0, 0.94, 0.04);
+        g.add(visor);
+        const sword = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.06), metal);
+        sword.position.set(0.32, 0.55, 0);
         g.add(sword);
-        const shield = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 0.25), acc);
-        shield.position.set(-0.25, 0.45, 0);
+        const hilt = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.04), acc);
+        hilt.position.set(0.32, 0.3, 0);
+        g.add(hilt);
+        const shield = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.04, 6), acc);
+        shield.position.set(-0.28, 0.55, 0.05);
+        shield.rotation.z = Math.PI / 2;
         g.add(shield);
         break;
       }
       case UnitType.ARCHER: {
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.45, 0.25), pri);
-        body.position.y = 0.42;
+        this.addLegs(g, sec, 0.18);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.4, 0.2), pri);
+        body.position.y = 0.55;
         body.castShadow = true;
         g.add(body);
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), sec);
-        head.position.y = 0.78;
+        this.addArms(g, pri, 0.5, 0.22);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 5), skin);
+        head.position.y = 0.88;
         g.add(head);
-        const hood = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.12, 4), pri);
-        hood.position.y = 0.95;
+        const hood = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.18, 5), pri);
+        hood.position.y = 1.02;
         g.add(hood);
-        const bow = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.02, 4, 8, Math.PI), acc);
-        bow.position.set(0.25, 0.5, 0);
+        const cape = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.35, 0.03), pri);
+        cape.position.set(0, 0.5, -0.13);
+        g.add(cape);
+        const bow = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.025, 4, 10, Math.PI * 1.2), acc);
+        bow.position.set(0.26, 0.55, 0);
         bow.rotation.z = Math.PI / 2;
         g.add(bow);
+        const quiver = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.3, 5), sec);
+        quiver.position.set(-0.05, 0.6, -0.15);
+        quiver.rotation.x = 0.15;
+        g.add(quiver);
         break;
       }
       case UnitType.KNIGHT: {
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.6, 0.35), acc);
-        body.position.y = 0.5;
+        this.addLegs(g, acc, 0.2);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.48, 0.3), acc);
+        body.position.y = 0.62;
         body.castShadow = true;
         g.add(body);
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.25), acc);
-        head.position.y = 0.95;
+        const shoulderL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.16), acc);
+        shoulderL.position.set(-0.28, 0.82, 0);
+        g.add(shoulderL);
+        const shoulderR = shoulderL.clone();
+        shoulderR.position.set(0.28, 0.82, 0);
+        g.add(shoulderR);
+        this.addArms(g, acc, 0.6, 0.3);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), acc);
+        head.position.y = 1.0;
         g.add(head);
-        const plume = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.2, 0.15), pri);
-        plume.position.y = 1.15;
+        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.1), new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.9 }));
+        visor.position.set(0, 1.0, 0.12);
+        g.add(visor);
+        const plume = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.25, 0.18), pri);
+        plume.position.y = 1.2;
         g.add(plume);
-        const lance = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 4), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 }));
-        lance.position.set(0.35, 0.6, 0);
-        lance.rotation.z = 0.15;
+        const lance = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 1.0, 5), metal);
+        lance.position.set(0.38, 0.7, 0);
+        lance.rotation.z = 0.1;
         g.add(lance);
+        const lanceHead = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.15, 4), metal);
+        lanceHead.position.set(0.4, 1.22, 0);
+        g.add(lanceHead);
         break;
       }
     }
@@ -368,7 +433,13 @@ export class EntityRenderer {
     }, 1200);
   }
 
-  updateUnits(units: Map<number, Unit>, selectedIds: Set<number>, t: number, camera?: THREE.Camera): void {
+  getTerrainHeight(x: number, z: number, tiles: { elevation: number }[][]): number {
+    const tx = Math.max(0, Math.min(tiles.length - 1, Math.floor(x)));
+    const tz = Math.max(0, Math.min((tiles[0]?.length || 1) - 1, Math.floor(z)));
+    return (tiles[tx]?.[tz]?.elevation || 0.25) * 5.5;
+  }
+
+  updateUnits(units: Map<number, Unit>, selectedIds: Set<number>, t: number, camera?: THREE.Camera, tiles?: { elevation: number }[][]): void {
     for (const [id, unit] of units) {
       if (unit.state === UnitState.DEAD) {
         const vis = this.unitVisuals.get(id);
@@ -384,6 +455,8 @@ export class EntityRenderer {
 
       vis.group.position.x = unit.x * TILE_SIZE;
       vis.group.position.z = unit.z * TILE_SIZE;
+      const groundY = tiles ? this.getTerrainHeight(unit.x, unit.z, tiles) : 0;
+      vis.group.position.y = groundY;
 
       const isMoving = unit.state === UnitState.MOVING || unit.state === UnitState.RETURNING;
       const isAttacking = unit.state === UnitState.ATTACKING;
@@ -391,13 +464,13 @@ export class EntityRenderer {
       const isBuilding = unit.state === UnitState.BUILDING;
 
       if (isMoving) {
-        vis.group.position.y = Math.sin(t * 10) * 0.08;
+        vis.group.position.y = groundY + Math.sin(t * 10) * 0.06;
       } else if (isAttacking) {
-        vis.group.position.y = Math.abs(Math.sin(t * 12)) * 0.1;
+        vis.group.position.y = groundY + Math.abs(Math.sin(t * 12)) * 0.08;
       } else if (isGathering || isBuilding) {
-        vis.group.children[0].rotation.z = Math.sin(t * 6) * 0.15;
+        if (vis.group.children[0]) vis.group.children[0].rotation.z = Math.sin(t * 6) * 0.12;
       } else {
-        vis.group.position.y = Math.sin(t * 2 + id) * 0.02;
+        vis.group.position.y = groundY + Math.sin(t * 2 + id) * 0.015;
       }
 
       if (unit.path.length > 0 && unit.pathIndex < unit.path.length) {
@@ -438,7 +511,7 @@ export class EntityRenderer {
     }
   }
 
-  updateBuildings(buildings: Map<number, Building>, selectedIds: Set<number>, t: number): void {
+  updateBuildings(buildings: Map<number, Building>, selectedIds: Set<number>, t: number, tiles?: { elevation: number }[][]): void {
     for (const [id, building] of buildings) {
       if (building.hp <= 0) {
         const vis = this.buildingVisuals.get(id);
@@ -451,6 +524,12 @@ export class EntityRenderer {
 
       const vis = this.buildingVisuals.get(id);
       if (!vis) continue;
+
+      if (tiles) {
+        const def = BUILDING_DEFS[building.type];
+        const groundY = this.getTerrainHeight(building.tileX + def.size / 2, building.tileZ + def.size / 2, tiles);
+        vis.group.position.y = groundY;
+      }
 
       const selected = selectedIds.has(id);
       vis.selectionRing.visible = selected;

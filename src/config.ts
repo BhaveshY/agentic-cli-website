@@ -221,11 +221,11 @@ export const FACTION_COLORS: Record<Faction, { primary: number; secondary: numbe
 };
 
 export const TERRAIN_COLORS: Record<TerrainType, number> = {
-  [TerrainType.GRASS]: 0x5a8a3c,
-  [TerrainType.FOREST]: 0x3d6b2e,
-  [TerrainType.WATER]: 0x2a6496,
-  [TerrainType.MOUNTAIN]: 0x8a8a7a,
-  [TerrainType.SAND]: 0xc8b87a,
+  [TerrainType.GRASS]: 0x6db33f,
+  [TerrainType.FOREST]: 0x3a7a28,
+  [TerrainType.WATER]: 0x2878a8,
+  [TerrainType.MOUNTAIN]: 0x9e9a8a,
+  [TerrainType.SAND]: 0xdcc87a,
 };
 
 export const LORE = {

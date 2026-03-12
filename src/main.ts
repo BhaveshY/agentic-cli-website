@@ -202,8 +202,9 @@ class AetheriaGame {
     this.terrain?.update(t);
     this.ai?.update();
 
-    this.entities?.updateUnits(this.world.state.units, this.world.state.selectedIds, t, this.scene.camera);
-    this.entities?.updateBuildings(this.world.state.buildings, this.world.state.selectedIds, t);
+    const tiles = this.world?.map.tiles;
+    this.entities?.updateUnits(this.world.state.units, this.world.state.selectedIds, t, this.scene.camera, tiles);
+    this.entities?.updateBuildings(this.world.state.buildings, this.world.state.selectedIds, t, tiles);
 
     this.uiUpdateCounter++;
     if (this.uiUpdateCounter % 6 === 0) {

@@ -10,12 +10,16 @@ export class TerrainRenderer {
   private waterMesh!: THREE.Mesh;
   private grassPatches: THREE.InstancedMesh | null = null;
 
+  private dustParticles!: THREE.Points;
+
   constructor(map: GameMap) {
     this.buildTerrain(map);
     this.buildWater();
     this.buildTrees(map);
+    this.buildScatteredRocks(map);
     this.buildGrassDetails(map);
     this.buildResources(map);
+    this.buildDustParticles();
   }
 
   private buildTerrain(map: GameMap): void {
@@ -336,6 +340,65 @@ export class TerrainRenderer {
     return g;
   }
 
+  private buildScatteredRocks(map: GameMap): void {
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x7a7a70, roughness: 0.92, flatShading: true });
+    let count = 0;
+    for (let x = 0; x < MAP_SIZE; x++) {
+      for (let z = 0; z < MAP_SIZE; z++) {
+        const tile = map.tiles[x][z];
+        if ((tile.terrain === TerrainType.GRASS || tile.terrain === TerrainType.SAND) && Math.random() < 0.03) count++;
+      }
+    }
+    if (count === 0) return;
+
+    const rockGeo = new THREE.DodecahedronGeometry(0.12, 0);
+    const rockInst = new THREE.InstancedMesh(rockGeo, rockMat, count);
+    rockInst.castShadow = true;
+    rockInst.receiveShadow = true;
+
+    const m = new THREE.Matrix4();
+    const p = new THREE.Vector3();
+    const q = new THREE.Quaternion();
+    const sc = new THREE.Vector3();
+    let idx = 0;
+    for (let x = 0; x < MAP_SIZE; x++) {
+      for (let z = 0; z < MAP_SIZE; z++) {
+        const tile = map.tiles[x][z];
+        if ((tile.terrain !== TerrainType.GRASS && tile.terrain !== TerrainType.SAND) || Math.random() >= 0.03) continue;
+        if (idx >= count) break;
+        const wx = x * TILE_SIZE + Math.random() * TILE_SIZE;
+        const wz = z * TILE_SIZE + Math.random() * TILE_SIZE;
+        const wy = tile.elevation * 5.5;
+        const s = 0.5 + Math.random() * 1.2;
+        p.set(wx, wy + 0.05 * s, wz);
+        q.setFromAxisAngle(new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize(), Math.random() * Math.PI);
+        sc.set(s, s * (0.5 + Math.random() * 0.5), s);
+        m.compose(p, q, sc);
+        rockInst.setMatrixAt(idx, m);
+        idx++;
+      }
+    }
+    rockInst.instanceMatrix.needsUpdate = true;
+    rockInst.computeBoundingSphere();
+    this.group.add(rockInst);
+  }
+
+  private buildDustParticles(): void {
+    const count = 300;
+    const positions = new Float32Array(count * 3);
+    const center = MAP_SIZE * TILE_SIZE / 2;
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = center + (Math.random() - 0.5) * MAP_SIZE * TILE_SIZE * 0.8;
+      positions[i * 3 + 1] = 1 + Math.random() * 8;
+      positions[i * 3 + 2] = center + (Math.random() - 0.5) * MAP_SIZE * TILE_SIZE * 0.8;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.06, transparent: true, opacity: 0.35, sizeAttenuation: true });
+    this.dustParticles = new THREE.Points(geo, mat);
+    this.group.add(this.dustParticles);
+  }
+
   update(t: number): void {
     for (const marker of this.resourceMarkers) {
       if (marker.children[0] instanceof THREE.Mesh) {
@@ -358,6 +421,18 @@ export class TerrainRenderer {
       }
       positions.needsUpdate = true;
       this.waterMesh.geometry.computeVertexNormals();
+    }
+
+    if (this.dustParticles) {
+      const pos = this.dustParticles.geometry.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < pos.count; i++) {
+        let y = pos.getY(i);
+        y += 0.005;
+        if (y > 10) y = 1;
+        pos.setY(i, y);
+        pos.setX(i, pos.getX(i) + Math.sin(t + i * 0.5) * 0.003);
+      }
+      pos.needsUpdate = true;
     }
   }
 }

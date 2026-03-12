@@ -108,7 +108,7 @@ export class InputControls {
       const ux = unit.x * TILE_SIZE;
       const uz = unit.z * TILE_SIZE;
       const dist = Math.hypot(worldPos.x - ux, worldPos.z - uz);
-      if (dist < TILE_SIZE * 0.6) {
+      if (dist < TILE_SIZE * 0.9) {
         clickedEntityId = id;
         break;
       }
@@ -206,6 +206,7 @@ export class InputControls {
       }
 
       this.world.commandMove(unitIds, targetX, targetZ);
+      this.entities.showMoveMarker(worldPos.x, worldPos.z);
       this.onEvent('command_move');
     }
   }

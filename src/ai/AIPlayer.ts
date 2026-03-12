@@ -15,7 +15,7 @@ export class AIPlayer {
   private world: GameWorld;
   private playerId: number;
   private lastAttackTick = 0;
-  private attackWaveSize = 5;
+  private attackWaveSize = 3;
   private hasTaunted = false;
   private lastTauntTick = 0;
 
@@ -26,7 +26,7 @@ export class AIPlayer {
 
   update(): void {
     const tick = this.world.state.tick;
-    if (tick % (TICK_RATE * 2) !== 0) return;
+    if (tick % TICK_RATE !== 0) return;
 
     const player = this.world.state.players[this.playerId];
     if (player.defeated) return;
@@ -144,7 +144,7 @@ export class AIPlayer {
     const tick = this.world.state.tick;
     const idleMilitary = military.filter((u) => u.state === UnitState.IDLE);
 
-    if (idleMilitary.length >= this.attackWaveSize && tick - this.lastAttackTick > TICK_RATE * 30) {
+    if (idleMilitary.length >= this.attackWaveSize && tick - this.lastAttackTick > TICK_RATE * 20) {
       this.lastAttackTick = tick;
       this.attackWaveSize = Math.min(15, this.attackWaveSize + 2);
 

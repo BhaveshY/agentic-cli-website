@@ -20,25 +20,28 @@ export class EntityRenderer {
   private buildingVisuals = new Map<number, EntityVisual>();
   private buildGhostMesh: THREE.Mesh | null = null;
 
-  private static readonly healthBarGeo = new THREE.PlaneGeometry(1, 0.08);
-  private static readonly ringGeo = new THREE.RingGeometry(0.4, 0.55, 24);
+  private moveMarkers: THREE.Mesh[] = [];
 
   createUnitVisual(unit: Unit, faction: Faction): void {
     const group = new THREE.Group();
     const colors = FACTION_COLORS[faction];
     const mesh = this.buildUnitMesh(unit.type, colors);
+    mesh.scale.set(1.6, 1.6, 1.6);
     group.add(mesh);
 
-    const { healthBar, healthBg } = this.createHealthBar(0.6);
+    const { healthBar, healthBg } = this.createHealthBar(1.0);
+    healthBg.position.y = 2.4;
+    healthBar.position.y = 2.4;
     group.add(healthBg);
     group.add(healthBar);
 
+    const ringGeo = new THREE.RingGeometry(0.6, 0.75, 24);
     const selectionRing = new THREE.Mesh(
-      EntityRenderer.ringGeo,
-      new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.5, side: THREE.DoubleSide })
+      ringGeo,
+      new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
     );
     selectionRing.rotation.x = -Math.PI / 2;
-    selectionRing.position.y = 0.02;
+    selectionRing.position.y = 0.05;
     selectionRing.visible = false;
     group.add(selectionRing);
 
@@ -350,7 +353,22 @@ export class EntityRenderer {
     return { healthBar, healthBg };
   }
 
-  updateUnits(units: Map<number, Unit>, selectedIds: Set<number>, t: number): void {
+  showMoveMarker(worldX: number, worldZ: number): void {
+    const geo = new THREE.RingGeometry(0.3, 0.5, 16);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
+    const marker = new THREE.Mesh(geo, mat);
+    marker.rotation.x = -Math.PI / 2;
+    marker.position.set(worldX, 0.1, worldZ);
+    this.unitGroup.add(marker);
+    this.moveMarkers.push(marker);
+
+    setTimeout(() => {
+      this.unitGroup.remove(marker);
+      this.moveMarkers = this.moveMarkers.filter((m) => m !== marker);
+    }, 1200);
+  }
+
+  updateUnits(units: Map<number, Unit>, selectedIds: Set<number>, t: number, camera?: THREE.Camera): void {
     for (const [id, unit] of units) {
       if (unit.state === UnitState.DEAD) {
         const vis = this.unitVisuals.get(id);
@@ -361,16 +379,25 @@ export class EntityRenderer {
         continue;
       }
 
-      let vis = this.unitVisuals.get(id);
+      const vis = this.unitVisuals.get(id);
       if (!vis) continue;
 
       vis.group.position.x = unit.x * TILE_SIZE;
       vis.group.position.z = unit.z * TILE_SIZE;
 
-      if (unit.state === UnitState.MOVING || unit.state === UnitState.RETURNING) {
-        vis.group.position.y = Math.sin(t * 8) * 0.05;
+      const isMoving = unit.state === UnitState.MOVING || unit.state === UnitState.RETURNING;
+      const isAttacking = unit.state === UnitState.ATTACKING;
+      const isGathering = unit.state === UnitState.GATHERING;
+      const isBuilding = unit.state === UnitState.BUILDING;
+
+      if (isMoving) {
+        vis.group.position.y = Math.sin(t * 10) * 0.08;
+      } else if (isAttacking) {
+        vis.group.position.y = Math.abs(Math.sin(t * 12)) * 0.1;
+      } else if (isGathering || isBuilding) {
+        vis.group.children[0].rotation.z = Math.sin(t * 6) * 0.15;
       } else {
-        vis.group.position.y = 0;
+        vis.group.position.y = Math.sin(t * 2 + id) * 0.02;
       }
 
       if (unit.path.length > 0 && unit.pathIndex < unit.path.length) {
@@ -383,11 +410,10 @@ export class EntityRenderer {
       } else if (unit.attackTargetId) {
         const target = units.get(unit.attackTargetId);
         if (target) {
-          const angle = Math.atan2(
+          vis.group.rotation.y = Math.atan2(
             target.x * TILE_SIZE - vis.group.position.x,
             target.z * TILE_SIZE - vis.group.position.z
           );
-          vis.group.rotation.y = angle;
         }
       }
 
@@ -403,9 +429,11 @@ export class EntityRenderer {
         (vis.healthBar.material as THREE.MeshBasicMaterial).color.setHex(
           hpRatio > 0.5 ? 0x44cc44 : hpRatio > 0.25 ? 0xcccc44 : 0xcc4444
         );
-        vis.healthBar.lookAt(vis.healthBar.position.clone().add(
-          vis.group.worldToLocal(new THREE.Vector3(0, vis.healthBar.position.y, 1))
-        ));
+      }
+
+      for (const marker of this.moveMarkers) {
+        (marker.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(t * 6) * 0.3;
+        marker.scale.setScalar(1 + Math.sin(t * 4) * 0.15);
       }
     }
   }

@@ -102,6 +102,9 @@ export class TerrainRenderer {
     leafInstanced.castShadow = true;
     leafInstanced.receiveShadow = true;
 
+    const tempPos = new THREE.Vector3();
+    const tempQuat = new THREE.Quaternion();
+    const tempScale = new THREE.Vector3();
     const matrix = new THREE.Matrix4();
     let idx = 0;
     for (let x = 0; x < MAP_SIZE; x++) {
@@ -109,18 +112,20 @@ export class TerrainRenderer {
         const tile = map.tiles[x][z];
         if (tile.terrain !== TerrainType.FOREST) continue;
 
-        const wx = x * TILE_SIZE + TILE_SIZE / 2 + (tile.treeVariant - 2) * 0.2;
-        const wz = z * TILE_SIZE + TILE_SIZE / 2 + (tile.treeVariant - 1) * 0.2;
+        const wx = x * TILE_SIZE + TILE_SIZE / 2 + (tile.treeVariant - 2) * 0.15;
+        const wz = z * TILE_SIZE + TILE_SIZE / 2 + (tile.treeVariant - 1) * 0.15;
         const wy = tile.elevation * 4;
 
-        const scale = 0.8 + (tile.treeVariant % 3) * 0.2;
+        const s = 0.9 + (tile.treeVariant % 3) * 0.25;
 
-        matrix.makeTranslation(wx, wy + 0.6 * scale, wz);
-        matrix.scale(new THREE.Vector3(scale, scale, scale));
+        tempPos.set(wx, wy + 0.6 * s, wz);
+        tempScale.set(s, s, s);
+        matrix.compose(tempPos, tempQuat, tempScale);
         trunkInstanced.setMatrixAt(idx, matrix);
 
-        matrix.makeTranslation(wx, wy + 1.5 * scale, wz);
-        matrix.scale(new THREE.Vector3(scale, scale, scale));
+        tempPos.set(wx, wy + 1.6 * s, wz);
+        tempScale.set(s, s * 1.2, s);
+        matrix.compose(tempPos, tempQuat, tempScale);
         leafInstanced.setMatrixAt(idx, matrix);
 
         idx++;
@@ -129,6 +134,8 @@ export class TerrainRenderer {
 
     trunkInstanced.instanceMatrix.needsUpdate = true;
     leafInstanced.instanceMatrix.needsUpdate = true;
+    trunkInstanced.computeBoundingSphere();
+    leafInstanced.computeBoundingSphere();
 
     this.group.add(trunkInstanced);
     this.group.add(leafInstanced);

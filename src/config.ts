@@ -5,18 +5,18 @@ import {
 
 export const MAP_SIZE = 40;
 export const TILE_SIZE = 2;
-export const TICK_RATE = 10;
+export const TICK_RATE = 15;
 export const TICKS_PER_SECOND = TICK_RATE;
 
 export const STARTING_RESOURCES = {
-  [ResourceType.AETHER]: 200,
-  [ResourceType.TIMBER]: 200,
-  [ResourceType.STONE]: 50,
+  [ResourceType.AETHER]: 300,
+  [ResourceType.TIMBER]: 300,
+  [ResourceType.STONE]: 100,
 };
 
-export const WORKER_CARRY_CAPACITY = 10;
-export const WORKER_GATHER_RATE = 1;
-export const AGGRO_RANGE = 6;
+export const WORKER_CARRY_CAPACITY = 15;
+export const WORKER_GATHER_RATE = 2;
+export const AGGRO_RANGE = 7;
 export const UNIT_COLLISION_RADIUS = 0.4;
 
 export const AGE_COSTS: Record<Age, Partial<Record<ResourceType, number>>> = {
@@ -31,11 +31,11 @@ export const UNIT_DEFS: Record<UnitType, UnitDef> = {
     name: 'Worker',
     hp: 30,
     damage: 3,
-    range: 1.2,
-    speed: 2.5,
-    attackSpeed: 20,
+    range: 1.5,
+    speed: 3.5,
+    attackSpeed: 15,
     cost: { [ResourceType.AETHER]: 50 },
-    trainTime: 30,
+    trainTime: 15,
     popCost: 1,
     minAge: Age.DAWN,
     canGather: true,
@@ -47,11 +47,11 @@ export const UNIT_DEFS: Record<UnitType, UnitDef> = {
     name: 'Swordsman',
     hp: 60,
     damage: 8,
-    range: 1.5,
-    speed: 2.8,
-    attackSpeed: 12,
+    range: 1.8,
+    speed: 3.5,
+    attackSpeed: 10,
     cost: { [ResourceType.AETHER]: 60, [ResourceType.TIMBER]: 20 },
-    trainTime: 25,
+    trainTime: 12,
     popCost: 1,
     minAge: Age.DAWN,
     canGather: false,
@@ -63,11 +63,11 @@ export const UNIT_DEFS: Record<UnitType, UnitDef> = {
     name: 'Archer',
     hp: 35,
     damage: 7,
-    range: 6,
-    speed: 2.6,
-    attackSpeed: 15,
+    range: 7,
+    speed: 3.2,
+    attackSpeed: 12,
     cost: { [ResourceType.AETHER]: 40, [ResourceType.TIMBER]: 40 },
-    trainTime: 30,
+    trainTime: 14,
     popCost: 1,
     minAge: Age.RISE,
     canGather: false,
@@ -79,11 +79,11 @@ export const UNIT_DEFS: Record<UnitType, UnitDef> = {
     name: 'Knight',
     hp: 120,
     damage: 14,
-    range: 1.5,
-    speed: 3.2,
-    attackSpeed: 14,
+    range: 1.8,
+    speed: 4.0,
+    attackSpeed: 10,
     cost: { [ResourceType.AETHER]: 100, [ResourceType.STONE]: 50 },
-    trainTime: 40,
+    trainTime: 20,
     popCost: 2,
     minAge: Age.ZENITH,
     canGather: false,

@@ -20,6 +20,7 @@ class AetheriaGame {
   private ai!: AIPlayer;
   private audio: GameAudio;
   private uiUpdateCounter = 0;
+  private gameLoopBound: ((dt: number, t: number) => void) | null = null;
 
   constructor() {
     const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -120,7 +121,10 @@ class AetheriaGame {
       this.entities.createBuildingVisual(building, player.faction);
     }
 
-    this.scene.onAnimate((dt, t) => this.gameLoop(dt, t));
+    if (!this.gameLoopBound) {
+      this.gameLoopBound = (dt: number, t: number) => this.gameLoop(dt, t);
+      this.scene.onAnimate(this.gameLoopBound);
+    }
     this.ui.showScreen('hud');
 
     const citadel = [...this.world.state.buildings.values()].find(
@@ -198,7 +202,7 @@ class AetheriaGame {
     this.terrain?.update(t);
     this.ai?.update();
 
-    this.entities?.updateUnits(this.world.state.units, this.world.state.selectedIds, t);
+    this.entities?.updateUnits(this.world.state.units, this.world.state.selectedIds, t, this.scene.camera);
     this.entities?.updateBuildings(this.world.state.buildings, this.world.state.selectedIds, t);
 
     this.uiUpdateCounter++;

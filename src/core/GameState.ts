@@ -89,7 +89,34 @@ export class GameWorld {
       { x: cx + 2, z: cz + 2 },
     ];
     for (const pos of workerPositions) {
-      this.createUnit(UnitType.WORKER, playerId, pos.x, pos.z);
+      const unit = this.createUnit(UnitType.WORKER, playerId, pos.x, pos.z);
+      if (unit) {
+        this.autoAssignWorker(unit);
+      }
+    }
+  }
+
+  autoAssignWorker(unit: Unit): void {
+    const forest = this.map.findNearestForest(Math.round(unit.x), Math.round(unit.z));
+    if (forest) {
+      unit.gatherTargetX = forest.x;
+      unit.gatherTargetZ = forest.z;
+      unit.state = UnitState.MOVING;
+      unit.targetX = forest.x;
+      unit.targetZ = forest.z;
+      unit.path = this.map.findPath(unit.x, unit.z, forest.x, forest.z);
+      unit.pathIndex = 0;
+      return;
+    }
+    const aether = this.map.findNearestResource(Math.round(unit.x), Math.round(unit.z), ResourceType.AETHER);
+    if (aether) {
+      unit.gatherTargetX = aether.x;
+      unit.gatherTargetZ = aether.z;
+      unit.state = UnitState.MOVING;
+      unit.targetX = aether.x;
+      unit.targetZ = aether.z;
+      unit.path = this.map.findPath(unit.x, unit.z, aether.x, aether.z);
+      unit.pathIndex = 0;
     }
   }
 
@@ -595,7 +622,6 @@ export class GameWorld {
 
   private autoAggro(unit: Unit): void {
     const def = UNIT_DEFS[unit.type];
-    if (def.canGather && !def.canBuild) return;
 
     let nearestEnemy: Unit | null = null;
     let nearestDist = AGGRO_RANGE;
@@ -612,6 +638,11 @@ export class GameWorld {
     if (nearestEnemy) {
       unit.state = UnitState.ATTACKING;
       unit.attackTargetId = nearestEnemy.id;
+      return;
+    }
+
+    if (def.canGather && unit.gatherTargetX < 0) {
+      this.autoAssignWorker(unit);
     }
   }
 

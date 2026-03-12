@@ -122,7 +122,36 @@ export class GameMap {
     }
 
     this.clearStartingAreas();
+    this.placeForests();
     this.placeResources(rand);
+  }
+
+  private placeForests(): void {
+    const forestZones = [
+      { cx: 10, cz: 3 }, { cx: 3, cz: 10 }, { cx: 10, cz: 10 },
+      { cx: this.width - 11, cz: this.height - 4 },
+      { cx: this.width - 4, cz: this.height - 11 },
+      { cx: this.width - 11, cz: this.height - 11 },
+      { cx: Math.floor(this.width / 2) - 4, cz: Math.floor(this.height / 2) },
+      { cx: Math.floor(this.width / 2) + 4, cz: Math.floor(this.height / 2) },
+      { cx: Math.floor(this.width / 2), cz: Math.floor(this.height / 2) - 4 },
+      { cx: Math.floor(this.width / 2), cz: Math.floor(this.height / 2) + 4 },
+    ];
+    for (const { cx, cz } of forestZones) {
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dz = -2; dz <= 2; dz++) {
+          const x = cx + dx;
+          const z = cz + dz;
+          if (!this.inBounds(x, z)) continue;
+          const tile = this.tiles[x][z];
+          if (tile.terrain === TerrainType.GRASS && tile.buildingId === null) {
+            tile.terrain = TerrainType.FOREST;
+            tile.passable = true;
+            tile.elevation = Math.max(0.3, tile.elevation);
+          }
+        }
+      }
+    }
   }
 
   private clearStartingAreas(): void {

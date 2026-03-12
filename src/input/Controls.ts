@@ -174,7 +174,7 @@ export class InputControls {
     }
 
     if (clickedEnemyId) {
-      this.world.commandAttack([...selected], clickedEnemyId);
+      this.world.commandAttack([...selected], clickedEnemyId, 0);
       this.onEvent('command_attack');
       return;
     }
@@ -193,19 +193,19 @@ export class InputControls {
           const u = this.world.state.units.get(id);
           return u && UNIT_DEFS[u.type].canGather;
         });
-        this.world.commandGather(workerIds, tileX, tileZ);
+        this.world.commandGather(workerIds, tileX, tileZ, 0);
         const nonWorkerIds = unitIds.filter((id) => {
           const u = this.world.state.units.get(id);
           return u && !UNIT_DEFS[u.type].canGather;
         });
         if (nonWorkerIds.length > 0) {
-          this.world.commandMove(nonWorkerIds, targetX, targetZ);
+          this.world.commandMove(nonWorkerIds, targetX, targetZ, 0);
         }
         this.onEvent('command_gather');
         return;
       }
 
-      this.world.commandMove(unitIds, targetX, targetZ);
+      this.world.commandMove(unitIds, targetX, targetZ, 0);
       this.entities.showMoveMarker(worldPos.x, worldPos.z);
       this.onEvent('command_move');
     }

@@ -168,24 +168,35 @@ export class TerrainRenderer {
   }
 
   private createAetherCrystal(): THREE.Mesh {
-    const geo = new THREE.OctahedronGeometry(0.4, 0);
+    const group = new THREE.Group() as unknown as THREE.Mesh;
     const mat = new THREE.MeshStandardMaterial({
       color: 0x7b68ee,
       emissive: 0x5533cc,
-      emissiveIntensity: 0.6,
+      emissiveIntensity: 0.8,
       roughness: 0.1,
       metalness: 0.5,
       transparent: true,
       opacity: 0.85,
     });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.castShadow = true;
 
-    const glow = new THREE.PointLight(0x7b68ee, 0.5, 4);
-    glow.position.y = 0.5;
-    mesh.add(glow);
+    const main = new THREE.Mesh(new THREE.OctahedronGeometry(0.6, 0), mat);
+    main.position.y = 0.8;
+    main.castShadow = true;
+    (group as unknown as THREE.Group).add(main);
 
-    return mesh;
+    for (let i = 0; i < 3; i++) {
+      const small = new THREE.Mesh(new THREE.OctahedronGeometry(0.25, 0), mat);
+      const angle = (i / 3) * Math.PI * 2;
+      small.position.set(Math.cos(angle) * 0.5, 0.3, Math.sin(angle) * 0.5);
+      small.castShadow = true;
+      (group as unknown as THREE.Group).add(small);
+    }
+
+    const glow = new THREE.PointLight(0x7b68ee, 1.0, 6);
+    glow.position.y = 0.8;
+    (group as unknown as THREE.Group).add(glow);
+
+    return group;
   }
 
   private createStoneDeposit(): THREE.Mesh {

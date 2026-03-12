@@ -97,25 +97,36 @@ export class GameWorld {
   }
 
   autoAssignWorker(unit: Unit): void {
-    const forest = this.map.findNearestForest(Math.round(unit.x), Math.round(unit.z));
-    if (forest) {
-      unit.gatherTargetX = forest.x;
-      unit.gatherTargetZ = forest.z;
-      unit.state = UnitState.MOVING;
-      unit.targetX = forest.x;
-      unit.targetZ = forest.z;
-      unit.path = this.map.findPath(unit.x, unit.z, forest.x, forest.z);
-      unit.pathIndex = 0;
-      return;
-    }
-    const aether = this.map.findNearestResource(Math.round(unit.x), Math.round(unit.z), ResourceType.AETHER);
+    const ux = Math.round(unit.x);
+    const uz = Math.round(unit.z);
+
+    const forest = this.map.findNearestForest(ux, uz, 12);
+    const aether = this.map.findNearestResource(ux, uz, ResourceType.AETHER, 12);
+
+    let bestTarget: { x: number; z: number } | null = null;
+    let bestDist = Infinity;
+
     if (aether) {
-      unit.gatherTargetX = aether.x;
-      unit.gatherTargetZ = aether.z;
+      const d = Math.abs(ux - aether.x) + Math.abs(uz - aether.z);
+      if (d < bestDist) { bestDist = d; bestTarget = aether; }
+    }
+    if (forest) {
+      const d = Math.abs(ux - forest.x) + Math.abs(uz - forest.z);
+      if (d < bestDist) { bestDist = d; bestTarget = forest; }
+    }
+
+    if (!bestTarget) {
+      const farForest = this.map.findNearestForest(ux, uz, 25);
+      if (farForest) bestTarget = farForest;
+    }
+
+    if (bestTarget) {
+      unit.gatherTargetX = bestTarget.x;
+      unit.gatherTargetZ = bestTarget.z;
       unit.state = UnitState.MOVING;
-      unit.targetX = aether.x;
-      unit.targetZ = aether.z;
-      unit.path = this.map.findPath(unit.x, unit.z, aether.x, aether.z);
+      unit.targetX = bestTarget.x;
+      unit.targetZ = bestTarget.z;
+      unit.path = this.map.findPath(unit.x, unit.z, bestTarget.x, bestTarget.z);
       unit.pathIndex = 0;
     }
   }
@@ -199,10 +210,11 @@ export class GameWorld {
     return unit;
   }
 
-  commandMove(unitIds: number[], targetX: number, targetZ: number): void {
+  commandMove(unitIds: number[], targetX: number, targetZ: number, owner?: number): void {
     for (const id of unitIds) {
       const unit = this.state.units.get(id);
-      if (!unit || unit.owner !== 0) continue;
+      if (!unit) continue;
+      if (owner !== undefined && unit.owner !== owner) continue;
 
       unit.state = UnitState.MOVING;
       unit.targetX = targetX;
@@ -214,19 +226,21 @@ export class GameWorld {
     }
   }
 
-  commandAttack(unitIds: number[], targetId: number): void {
+  commandAttack(unitIds: number[], targetId: number, owner?: number): void {
     for (const id of unitIds) {
       const unit = this.state.units.get(id);
-      if (!unit || unit.owner !== 0) continue;
+      if (!unit) continue;
+      if (owner !== undefined && unit.owner !== owner) continue;
       unit.state = UnitState.ATTACKING;
       unit.attackTargetId = targetId;
     }
   }
 
-  commandGather(unitIds: number[], tileX: number, tileZ: number): void {
+  commandGather(unitIds: number[], tileX: number, tileZ: number, owner?: number): void {
     for (const id of unitIds) {
       const unit = this.state.units.get(id);
-      if (!unit || unit.owner !== 0) continue;
+      if (!unit) continue;
+      if (owner !== undefined && unit.owner !== owner) continue;
       const def = UNIT_DEFS[unit.type];
       if (!def.canGather) continue;
 

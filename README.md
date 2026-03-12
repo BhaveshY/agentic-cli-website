@@ -1,6 +1,6 @@
-# ⚡ Neural Clash — Strategic AI Battle Arena
+# 🏰 Aetheria: Rise of Empires
 
-A 3D strategic combat game where you duel ARIA, a sassy AI opponent with attitude. Built with Three.js, TypeScript, and procedural audio. Connect your own AI agent via WebSocket to challenge ARIA — or play yourself.
+A 3D real-time strategy game set in the shattered realm of Aetheria, where floating islands drift through an endless sky. Build your empire, command armies, and conquer your AI opponent.
 
 ## Play
 
@@ -9,119 +9,102 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` in your browser.
+Open `http://localhost:3000` and press **Enter** to start a game.
 
-## Game Overview
+## The World of Aetheria
 
-**Neural Clash** is a simultaneous-action strategy game. Each turn, both you and ARIA choose an action — then watch the results unfold in a stunning 3D arena with particle effects, screen shake, and witty AI commentary.
+In the shattered realm of Aetheria, floating islands drift through an endless sky, bound together by veins of raw magical energy called Aether. Two great civilizations have risen from the ancient ruins:
 
-### Actions
+### Factions
 
-| Action | Key | Damage | Energy | Beats | Loses To |
-|--------|-----|--------|--------|-------|----------|
-| ⚔️ Strike | 1/Q | 18 | 0 | Charge, Dodge | Shield |
-| 💥 Blast | 2/W | 22 | 0 | Shield, Charge | Dodge |
-| 🛡️ Shield | 3/E | 0 | 0 | Strike | Blast |
-| 💨 Dodge | 4/A | 0 | 0 | Blast, Surge | Strike |
-| ⚡ Charge | 5/S | 0 | +2 | — | Everything |
-| 🌀 Surge | 6/D | 40 | -4 | Almost all | Dodge |
+**The Solari Dominion** ☀️ *"In Light, We Conquer"*
+An empire of radiant crystal and golden steel. Led by Empress Aurelia the Radiant, their cities gleam with reflected sunlight and their warriors carry the fire of stars into battle.
 
-### Features
+**The Ironroot Collective** 🌿 *"From Root to Crown, We Endure"*
+A civilization grown from the living heart of the ancient forests. Led by Elder Thorn of the Deep Grove, they shape trees into towers, weave roots into walls, and commune with the deep magic of the earth.
 
-- **3D Arena** — Cyberpunk arena with glowing pillars, floating gems, particle fields
-- **Procedural Characters** — Robot fighters with combat animations and damage flash
-- **AI Personality** — ARIA trash-talks, makes puns, and adapts to your patterns
-- **Difficulty Levels** — Easy, Medium, Hard AI strategies
-- **Keyboard Shortcuts** — Keys 1-6 or QWEASD for instant action selection
-- **Procedural Audio** — All sound effects generated via Web Audio API
-- **Screen Shake** — Camera shake proportional to damage dealt
-- **Particle VFX** — Action-specific particle effects and hit sparks
-- **Timer** — 15-second action timer with urgency indicator
-- **Responsive** — Works on desktop and mobile
+## Gameplay
 
-## AI Agent API
+### Resources
+| Resource | Icon | Source |
+|----------|------|--------|
+| Aether | 💎 | Aether Wells |
+| Timber | 🪵 | Forests |
+| Stone | 🪨 | Quarries near mountains |
 
-Connect your own AI agent to play against ARIA (or replace ARIA entirely).
+### Buildings
+| Building | Cost | Function |
+|----------|------|----------|
+| Citadel | — | Train workers, advance ages |
+| Aether Well | 🪵75 | Gather aether from nodes |
+| Lumber Camp | 💎50 | Gather timber faster |
+| Quarry | 💎75 🪵50 | Gather stone from nodes |
+| Barracks | 💎100 🪵80 | Train swordsmen, archers |
+| Armory | 💎200 🪵100 🪨100 | Train knights (Age II+) |
+| Watch Tower | 🪵50 🪨30 | Defensive ranged attack |
+| Farm | 🪵60 | +5 population capacity |
 
-### WebSocket Endpoint
+### Units
+| Unit | Cost | HP | Damage | Range | Age |
+|------|------|----|--------|-------|-----|
+| Worker | 💎50 | 30 | 3 | 1.2 | I |
+| Swordsman | 💎60 🪵20 | 60 | 8 | 1.5 | I |
+| Archer | 💎40 🪵40 | 35 | 7 | 6.0 | II |
+| Knight | 💎100 🪨50 | 120 | 14 | 1.5 | III |
 
-```
-ws://localhost:3001/api/agent
-```
+### Ages
+- **Age I: Dawn** — Workers, basic buildings, swordsmen
+- **Age II: Rise** — Archers, towers, armory
+- **Age III: Zenith** — Knights, full military power
 
-### Protocol
+## Controls
 
-**Incoming Messages** (server → agent):
+| Action | Control |
+|--------|---------|
+| Pan camera | WASD / Arrow keys / Edge scroll |
+| Zoom | Mouse wheel |
+| Rotate | Q / E |
+| Select | Left-click |
+| Multi-select | Shift+click or drag |
+| Move/Gather/Attack | Right-click |
+| Stop units | S key (with units selected) |
+| Cancel build | Escape |
 
-```json
-{
-  "type": "action_request",
-  "payload": {
-    "round": 5,
-    "phase": "ACTION_SELECT",
-    "human": { "hp": 72, "energy": 2, "lastActions": ["STRIKE", "BLAST"] },
-    "ai": { "hp": 85, "energy": 0, "lastActions": ["SHIELD", "CHARGE"] },
-    "availableActions": ["STRIKE", "BLAST", "SHIELD", "DODGE", "CHARGE"],
-    "roundHistory": [...]
-  }
-}
-```
+## AI Opponent
 
-**Outgoing Messages** (agent → server):
-
-```json
-{ "type": "action", "action": "STRIKE" }
-{ "type": "chat", "message": "Nice try, human!" }
-```
-
-### API Documentation
-
-```
-GET http://localhost:3001/api/docs   — Full API reference
-GET http://localhost:3001/api/health — Health check
-```
+The AI builds bases, gathers resources, trains armies, and attacks. It taunts you along the way.
 
 ## Tech Stack
 
-- **Three.js** — 3D rendering with WebGL (WebGPU-ready)
+- **Three.js** — 3D rendering with WebGL
 - **TypeScript** — Type-safe game logic
-- **Vite** — Fast dev server and build
-- **Web Audio API** — Procedural sound synthesis
-- **Express + ws** — AI agent WebSocket server
+- **Vite** — Dev server and build
+- **Web Audio API** — Procedural sound effects
+- **A\* Pathfinding** — Grid-based unit navigation
 
 ## Project Structure
 
 ```
 src/
-├── main.ts              # Entry point, game orchestration
+├── main.ts              # Entry point
 ├── types.ts             # Type definitions
-├── constants.ts         # Game config, actions, matchup table
-├── game/
-│   ├── engine.ts        # Game state machine, combat resolution
-│   ├── ai.ts            # AI brain, personality, humor
-│   └── agent.ts         # External AI agent WebSocket bridge
-├── graphics/
-│   ├── scene.ts         # Three.js scene, camera, lighting
-│   ├── arena.ts         # 3D arena construction
-│   ├── fighters.ts      # Robot fighter models & animations
-│   └── effects.ts       # Particle VFX system
+├── config.ts            # Game config, factions, lore
+├── core/
+│   ├── GameMap.ts       # Terrain generation, pathfinding
+│   └── GameState.ts     # Game state, units, buildings, combat
+├── render/
+│   ├── SceneSetup.ts    # Three.js scene, camera, lighting
+│   ├── Terrain.ts       # Terrain mesh, trees, resources
+│   └── EntityModels.ts  # Building/unit 3D models
+├── input/
+│   └── Controls.ts      # Mouse/keyboard, selection, commands
 ├── ui/
-│   └── controller.ts    # All UI screens and HUD
+│   └── GameUI.ts        # HUD, menus, selection panels
+├── ai/
+│   └── AIPlayer.ts      # AI economy, military, taunts
 ├── audio/
-│   └── sounds.ts        # Procedural sound engine
-└── style.css            # Full UI styling
-server/
-└── index.ts             # Express + WebSocket agent server
-```
-
-## Scripts
-
-```bash
-npm run dev       # Start Vite dev server (port 3000)
-npm run server    # Start agent API server (port 3001)
-npm run start     # Start both concurrently
-npm run build     # Production build
-npm run typecheck # TypeScript type checking
+│   └── Sounds.ts        # Procedural audio
+└── style.css            # UI styling
 ```
 
 ## License

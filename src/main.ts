@@ -1,340 +1,221 @@
 import './style.css';
-import * as THREE from 'three';
-import { GameEngine } from './game/engine';
-import { AIBrain } from './game/ai';
-import { AgentBridge } from './game/agent';
-import { SceneManager } from './graphics/scene';
-import { Arena } from './graphics/arena';
-import { FighterRenderer } from './graphics/fighters';
-import { VFXSystem } from './graphics/effects';
-import { UIController } from './ui/controller';
-import { SoundEngine } from './audio/sounds';
-import { ActionType, GamePhase, PlayerSide } from './types';
-import { ACTIONS, GAME_CONFIG } from './constants';
-import { COLORS } from './constants';
+import { Faction, GamePhase, BuildingType, UnitType } from './types';
+import { BUILDING_DEFS, TICK_RATE } from './config';
+import { GameWorld } from './core/GameState';
+import { SceneSetup } from './render/SceneSetup';
+import { TerrainRenderer } from './render/Terrain';
+import { EntityRenderer } from './render/EntityModels';
+import { InputControls } from './input/Controls';
+import { GameUI } from './ui/GameUI';
+import { AIPlayer } from './ai/AIPlayer';
+import { GameAudio } from './audio/Sounds';
 
-class NeuralClash {
-  private engine: GameEngine;
-  private ai: AIBrain;
-  private scene: SceneManager;
-  private arena: Arena;
-  private fighters: FighterRenderer;
-  private vfx: VFXSystem;
-  private ui: UIController;
-  private sound: SoundEngine;
-  private agent: AgentBridge;
-  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+class AetheriaGame {
+  private world!: GameWorld;
+  private scene: SceneSetup;
+  private terrain!: TerrainRenderer;
+  private entities!: EntityRenderer;
+  private controls!: InputControls;
+  private ui: GameUI;
+  private ai!: AIPlayer;
+  private audio: GameAudio;
+  private uiUpdateCounter = 0;
 
   constructor() {
     const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
     const uiLayer = document.getElementById('ui-layer') as HTMLElement;
 
-    this.engine = new GameEngine();
-    this.ai = new AIBrain();
-    this.sound = new SoundEngine();
+    this.scene = new SceneSetup(canvas);
+    this.audio = new GameAudio();
+    this.ui = new GameUI(uiLayer, (event, data) => this.handleUIEvent(event, data));
+    this.ui.init();
 
-    this.scene = new SceneManager(canvas);
-    this.arena = new Arena();
-    this.scene.scene.add(this.arena.group);
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !this.world) {
+        this.startGame(Faction.SOLARI);
+      }
+    });
 
-    this.fighters = new FighterRenderer();
-    this.scene.scene.add(this.fighters.humanGroup);
-    this.scene.scene.add(this.fighters.aiGroup);
-
-    this.vfx = new VFXSystem(this.scene.scene);
-
-    this.ui = new UIController(
-      uiLayer,
-      (action) => this.handlePlayerAction(action),
-      (event, data) => this.handleUIEvent(event, data)
-    );
-
-    this.agent = new AgentBridge(
-      (connected) => {
-        this.engine.setAgentConnected(connected);
-        this.ui.setAgentStatus(connected);
-      },
-      (action) => this.handleAgentAction(action),
-      (message) => this.ui.addChatMessage(message, 'AGENT')
-    );
-
-    this.setupEngineListeners();
-    this.setupAnimationLoop();
-    this.setupKeyboardShortcuts();
-
-    this.scene.setCameraForMenu();
     this.scene.start();
-  }
-
-  private setupEngineListeners(): void {
-    this.engine.on((event, data) => {
-      const state = this.engine.getState();
-
-      switch (event) {
-        case 'phase_change':
-          this.ui.updateForPhase(data as GamePhase, state);
-          this.handlePhaseChange(data as GamePhase);
-          break;
-        case 'round_resolved':
-          this.handleRoundResolved(data as import('./types').RoundResult);
-          break;
-        case 'game_over':
-          this.handleGameOver(data as PlayerSide | null);
-          break;
-      }
-    });
-  }
-
-  private setupAnimationLoop(): void {
-    this.scene.onAnimate((dt, elapsed) => {
-      this.arena.update(elapsed);
-      this.fighters.update(elapsed, dt);
-      this.vfx.update(dt);
-    });
-  }
-
-  private handlePhaseChange(phase: GamePhase): void {
-    switch (phase) {
-      case GamePhase.INTRO:
-        this.handleIntro();
-        break;
-      case GamePhase.ACTION_SELECT:
-        this.handleActionSelect();
-        break;
-      case GamePhase.RESOLVING:
-        break;
-      case GamePhase.GAME_OVER:
-        break;
-    }
-  }
-
-  private handleIntro(): void {
-    this.ui.clearChat();
-    this.scene.setCameraForBattle();
-    this.sound.playRoundStart();
-
-    const greeting = this.ai.getPersonality().getQuip('greeting');
-    this.ui.showIntroMessage(greeting);
-
-    setTimeout(() => {
-      this.engine.beginActionPhase();
-    }, GAME_CONFIG.INTRO_DURATION_MS);
-  }
-
-  private handleActionSelect(): void {
-    this.scene.setCameraForBattle();
-    this.sound.playRoundStart();
-    this.fighters.resetPose();
-
-    this.scheduleIdleQuip();
-
-    if (!this.agent.isConnected()) {
-      this.scheduleAIAction();
-    } else {
-      this.agent.sendGameState(this.engine.getSerializableState());
-    }
-  }
-
-  private scheduleAIAction(): void {
-    const thinkTime = 800 + Math.random() * 2000;
-    setTimeout(() => {
-      const state = this.engine.getState();
-      if (state.phase !== GamePhase.ACTION_SELECT) return;
-      const action = this.ai.chooseAction(state);
-      this.engine.submitAction(PlayerSide.AI, action);
-    }, thinkTime);
-  }
-
-  private scheduleIdleQuip(): void {
-    if (this.idleTimer) clearTimeout(this.idleTimer);
-    this.idleTimer = setTimeout(() => {
-      const state = this.engine.getState();
-      if (state.phase === GamePhase.ACTION_SELECT) {
-        this.ui.addChatMessage(this.ai.getIdleQuip());
-      }
-    }, 8000);
-  }
-
-  private handlePlayerAction(action: ActionType): void {
-    if (this.idleTimer) clearTimeout(this.idleTimer);
-
-    const success = this.engine.submitAction(PlayerSide.HUMAN, action);
-    if (!success) return;
-
-    this.playActionSound(action);
-  }
-
-  private handleAgentAction(action: ActionType): void {
-    this.engine.submitAction(PlayerSide.AI, action);
-  }
-
-  private handleRoundResolved(result: import('./types').RoundResult): void {
-    this.scene.setCameraForClash();
-
-    this.fighters.playActionAnimation(PlayerSide.HUMAN, result.humanAction);
-    this.fighters.playActionAnimation(PlayerSide.AI, result.aiAction);
-
-    this.vfx.spawnActionEffect(result.humanAction, PlayerSide.HUMAN);
-    this.vfx.spawnActionEffect(result.aiAction, PlayerSide.AI);
-
-    this.playActionSound(result.humanAction);
-    setTimeout(() => this.playActionSound(result.aiAction), 150);
-
-    if (result.aiDamage > 0) {
-      setTimeout(() => {
-        this.vfx.spawnHitEffect(new THREE.Vector3(-4, 2.5, 0));
-        this.fighters.flashDamage(PlayerSide.HUMAN);
-        this.scene.triggerScreenShake(result.aiDamage / 30);
-        this.sound.playHit();
-      }, 400);
-    }
-
-    if (result.humanDamage > 0) {
-      setTimeout(() => {
-        this.vfx.spawnHitEffect(new THREE.Vector3(4, 2.5, 0));
-        this.fighters.flashDamage(PlayerSide.AI);
-        this.scene.triggerScreenShake(result.humanDamage / 30);
-        this.sound.playHit();
-      }, 500);
-    }
-
-    setTimeout(() => {
-      const state = this.engine.getState();
-      this.ui.showResolveResult(result);
-      this.ui.updateStats(state);
-
-      const commentary = this.ai.generateCommentary(state);
-      this.ui.addChatMessage(commentary);
-
-      setTimeout(() => {
-        if (state.phase === GamePhase.GAME_OVER) {
-          this.handleGameOver(state.matchWinner);
-        } else {
-          this.engine.beginActionPhase();
-        }
-      }, GAME_CONFIG.ROUND_END_DELAY_MS);
-    }, GAME_CONFIG.RESOLVE_ANIMATION_MS);
-  }
-
-  private handleGameOver(winner: PlayerSide | null): void {
-    const state = this.engine.getState();
-    const quip = this.ai.getGameOverQuip(winner);
-
-    this.ui.addChatMessage(quip);
-    this.ui.showGameOver(winner, state, quip);
-
-    if (winner === PlayerSide.HUMAN) {
-      this.sound.playVictory();
-      this.vfx.spawnVictoryEffect(new THREE.Vector3(-4, 2.5, 0), COLORS.humanPrimary);
-    } else if (winner === PlayerSide.AI) {
-      this.sound.playDefeat();
-      this.vfx.spawnVictoryEffect(new THREE.Vector3(4, 2.5, 0), COLORS.aiPrimary);
-    }
-
-    if (this.agent.isConnected()) {
-      this.agent.sendGameOver(winner || 'draw');
-    }
   }
 
   private handleUIEvent(event: string, data?: unknown): void {
     switch (event) {
-      case 'start':
-        this.engine.startGame();
+      case 'start_game':
+        this.startGame(data as Faction);
         break;
-      case 'menu':
-        this.engine.returnToMenu();
-        this.scene.setCameraForMenu();
+      case 'return_menu':
+        this.returnToMenu();
         break;
-      case 'difficulty':
-        this.ai.setDifficulty(data as 'easy' | 'medium' | 'hard');
-        break;
-      case 'agent_connect':
-        this.agent.connect(data as string);
-        break;
-      case 'sound_toggle':
-        this.sound.setMuted(data as boolean);
-        break;
-      case 'sound_select':
-        this.sound.playSelect();
-        break;
-      case 'sound_confirm':
-        this.sound.playConfirm();
-        break;
-      case 'timer_expired': {
-        const available = this.engine.getAvailableActions(PlayerSide.HUMAN);
-        if (available.length > 0) {
-          const randomAction = available[Math.floor(Math.random() * available.length)];
-          this.engine.submitAction(PlayerSide.HUMAN, randomAction);
+      case 'train_unit': {
+        const { unitType, buildingId } = data as { unitType: UnitType; buildingId: number };
+        if (this.world.trainUnit(buildingId, unitType)) {
+          this.audio.playTrain();
         }
+        this.ui.updateSelection(this.world.state);
         break;
       }
+      case 'start_build': {
+        const buildingType = data as BuildingType;
+        this.controls.startBuildPlacement(buildingType);
+        break;
+      }
+      case 'age_up':
+        if (this.world.advanceAge(0)) {
+          this.audio.playAgeUp();
+        }
+        break;
+      case 'selection_changed':
+        this.ui.updateSelection(this.world.state);
+        break;
+      case 'command_move':
+      case 'command_attack':
+      case 'command_gather':
+        this.audio.playClick();
+        break;
+      case 'building_placed':
+        this.audio.playBuild();
+        break;
     }
   }
 
-  private setupKeyboardShortcuts(): void {
-    const keyMap: Record<string, ActionType> = {
-      '1': ActionType.STRIKE,
-      '2': ActionType.BLAST,
-      '3': ActionType.SHIELD,
-      '4': ActionType.DODGE,
-      '5': ActionType.CHARGE,
-      '6': ActionType.SURGE,
-      'q': ActionType.STRIKE,
-      'w': ActionType.BLAST,
-      'e': ActionType.SHIELD,
-      'a': ActionType.DODGE,
-      's': ActionType.CHARGE,
-      'd': ActionType.SURGE,
-    };
+  private startGame(faction: Faction): void {
+    if (this.world) {
+      this.world.stopTicking();
+    }
 
-    window.addEventListener('keydown', (e) => {
-      const state = this.engine.getState();
+    if (this.terrain) {
+      this.scene.scene.remove(this.terrain.group);
+    }
+    if (this.entities) {
+      this.scene.scene.remove(this.entities.unitGroup);
+      this.scene.scene.remove(this.entities.buildingGroup);
+    }
 
-      if (state.phase === GamePhase.MENU && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault();
-        this.engine.startGame();
-        return;
-      }
+    this.world = new GameWorld();
+    this.entities = new EntityRenderer();
+    this.scene.scene.add(this.entities.unitGroup);
+    this.scene.scene.add(this.entities.buildingGroup);
 
-      if (state.phase === GamePhase.ACTION_SELECT) {
-        const action = keyMap[e.key.toLowerCase()];
-        if (action) {
-          e.preventDefault();
-          this.handlePlayerAction(action);
+    this.world.startGame(faction);
+
+    this.terrain = new TerrainRenderer(this.world.map);
+    this.scene.scene.add(this.terrain.group);
+
+    this.controls = new InputControls(
+      this.scene, this.world, this.entities,
+      (event, data) => this.handleUIEvent(event, data)
+    );
+
+    this.ai = new AIPlayer(this.world, 1);
+
+    this.setupWorldEvents();
+
+    for (const unit of this.world.state.units.values()) {
+      const player = this.world.state.players[unit.owner];
+      this.entities.createUnitVisual(unit, player.faction);
+    }
+    for (const building of this.world.state.buildings.values()) {
+      const player = this.world.state.players[building.owner];
+      this.entities.createBuildingVisual(building, player.faction);
+    }
+
+    this.scene.onAnimate((dt, t) => this.gameLoop(dt, t));
+    this.ui.showScreen('hud');
+
+    const citadel = [...this.world.state.buildings.values()].find(
+      (b) => b.owner === 0 && b.type === BuildingType.CITADEL
+    );
+    if (citadel) {
+      const def = BUILDING_DEFS[citadel.type];
+      this.scene.cameraTarget.set(
+        (citadel.tileX + def.size / 2) * 2,
+        0,
+        (citadel.tileZ + def.size / 2) * 2
+      );
+      this.scene.updateCameraPosition();
+    }
+  }
+
+  private setupWorldEvents(): void {
+    this.world.on((event, data) => {
+      switch (event) {
+        case 'unit_created': {
+          const unit = data as import('./types').Unit;
+          const player = this.world.state.players[unit.owner];
+          this.entities.createUnitVisual(unit, player.faction);
+          break;
         }
-      }
-
-      if (state.phase === GamePhase.GAME_OVER) {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          this.engine.startGame();
+        case 'building_created': {
+          const building = data as import('./types').Building;
+          const player = this.world.state.players[building.owner];
+          this.entities.createBuildingVisual(building, player.faction);
+          break;
         }
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          this.engine.returnToMenu();
-          this.scene.setCameraForMenu();
+        case 'unit_died': {
+          const unit = data as import('./types').Unit;
+          this.entities.removeEntity(unit.id);
+          break;
         }
+        case 'building_destroyed': {
+          const building = data as import('./types').Building;
+          this.entities.removeEntity(building.id);
+          break;
+        }
+        case 'attack':
+          this.audio.playSword();
+          break;
+        case 'notification': {
+          const { text, type } = data as { text: string; type: string };
+          this.ui.addNotification(text, type);
+          break;
+        }
+        case 'game_over': {
+          const result = data as string;
+          if (result === 'victory') {
+            this.audio.playVictory();
+            this.ui.showResult('victory', this.world.state);
+          } else {
+            this.audio.playDefeat();
+            this.ui.showResult('defeat', this.world.state);
+          }
+          break;
+        }
+        case 'building_complete':
+          this.audio.playBuild();
+          break;
+        case 'age_advance':
+          this.audio.playAgeUp();
+          break;
       }
     });
   }
 
-  private playActionSound(action: ActionType): void {
-    switch (action) {
-      case ActionType.STRIKE: this.sound.playStrike(); break;
-      case ActionType.BLAST: this.sound.playBlast(); break;
-      case ActionType.SHIELD: this.sound.playShield(); break;
-      case ActionType.DODGE: this.sound.playDodge(); break;
-      case ActionType.CHARGE: this.sound.playCharge(); break;
-      case ActionType.SURGE: this.sound.playSurge(); break;
+  private gameLoop(dt: number, t: number): void {
+    if (this.world?.state.phase !== GamePhase.PLAYING) return;
+
+    this.controls?.update(dt);
+    this.terrain?.update(t);
+    this.ai?.update();
+
+    this.entities?.updateUnits(this.world.state.units, this.world.state.selectedIds, t);
+    this.entities?.updateBuildings(this.world.state.buildings, this.world.state.selectedIds, t);
+
+    this.uiUpdateCounter++;
+    if (this.uiUpdateCounter % 6 === 0) {
+      this.ui.updateResources(this.world.state);
+      this.ui.updateSelection(this.world.state);
+      this.ui.updateMinimap(this.world.state);
     }
+  }
+
+  private returnToMenu(): void {
+    this.world?.stopTicking();
   }
 }
 
-// Initialize immediately if DOM is ready, otherwise wait for DOMContentLoaded
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    new NeuralClash();
-  });
+  document.addEventListener('DOMContentLoaded', () => new AetheriaGame());
 } else {
-  new NeuralClash();
+  new AetheriaGame();
 }

@@ -295,7 +295,7 @@ export class InputControls {
     const tileX = Math.floor(worldPos.x / TILE_SIZE);
     const tileZ = Math.floor(worldPos.z / TILE_SIZE);
     const valid = this.world.map.canPlaceBuilding(tileX, tileZ, def.size);
-    this.entities.showBuildGhost(type, tileX, tileZ, valid);
+    this.entities.showBuildGhost(type, tileX, tileZ, valid, this.world.map.tiles);
   }
 
   private handleBuildPlacement(e: MouseEvent): void {

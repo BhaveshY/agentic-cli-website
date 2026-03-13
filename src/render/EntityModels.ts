@@ -734,7 +734,13 @@ export class EntityRenderer {
     }
   }
 
-  showBuildGhost(type: BuildingType, tileX: number, tileZ: number, valid: boolean): void {
+  showBuildGhost(
+    type: BuildingType,
+    tileX: number,
+    tileZ: number,
+    valid: boolean,
+    tiles?: { elevation: number }[][]
+  ): void {
     this.hideBuildGhost();
 
     const def = BUILDING_DEFS[type];
@@ -746,9 +752,12 @@ export class EntityRenderer {
       opacity: 0.4,
     });
     this.buildGhostMesh = new THREE.Mesh(geo, mat);
+    const groundY = tiles
+      ? this.getTerrainHeight(tileX + def.size / 2, tileZ + def.size / 2, tiles)
+      : 0;
     this.buildGhostMesh.position.set(
       (tileX + def.size / 2) * TILE_SIZE,
-      0.2,
+      groundY + 0.2,
       (tileZ + def.size / 2) * TILE_SIZE
     );
     this.buildingGroup.add(this.buildGhostMesh);

@@ -107,6 +107,30 @@ body {
 .faction-motto { font-size: 0.7rem; color: var(--dim); margin-top: 0.3rem; font-style: italic; }
 
 .menu-buttons { display: flex; flex-direction: column; gap: 0.8rem; width: min(90vw, 280px); }
+.agent-join-section { margin-top: 1.5rem; text-align: center; width: min(90vw, 420px); }
+.agent-url-panel {
+  margin-top: 0.8rem; padding: 1rem; background: var(--bg-glass);
+  border: 1px solid var(--border); border-radius: 8px; backdrop-filter: blur(10px);
+  text-align: left;
+}
+.agent-url-label { font-size: 0.75rem; color: var(--dim); margin-bottom: 0.5rem; }
+.agent-url-box {
+  font-family: var(--font-mono); font-size: 0.7rem; color: var(--blue);
+  background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 5px;
+  word-break: break-all; margin-bottom: 0.6rem; border: 1px solid rgba(66,165,245,0.2);
+  user-select: all;
+}
+.agent-url-options {
+  display: flex; gap: 1rem; align-items: center; margin-bottom: 0.6rem; flex-wrap: wrap;
+}
+.agent-opt { font-size: 0.72rem; color: var(--dim); display: flex; align-items: center; gap: 0.3rem; cursor: pointer; }
+.agent-opt input { cursor: pointer; }
+.agent-faction-row { font-size: 0.72rem; color: var(--dim); display: flex; align-items: center; gap: 0.4rem; }
+.agent-faction-row select {
+  font-family: var(--font-mono); font-size: 0.7rem; padding: 0.2rem 0.4rem;
+  background: rgba(0,0,0,0.3); color: var(--white); border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer;
+}
 .btn {
   font-family: var(--font-display);
   font-size: 0.9rem;
@@ -339,24 +363,7 @@ body {
   color: #ff8844 !important;
 }
 
-/* ===== ENHANCED TOOLTIPS ===== */
-.build-btn[title]:hover::after {
-  content: attr(title);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 0.4rem 0.7rem;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  font-size: 0.68rem;
-  color: var(--dim);
-  white-space: nowrap;
-  z-index: 50;
-  pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
+/* ===== BUILD BUTTONS ===== */
 .build-btn { position: relative; }
 
 /* ===== ENHANCED SELECTION PANEL ===== */

@@ -77,20 +77,25 @@ class AetheriaGame implements AgentController {
         if (this.world.trainUnit(buildingId, unitType)) {
           this.audio.playTrain();
         }
+        this.ui.markSelectionDirty();
         this.ui.updateSelection(this.world.state);
         break;
       }
       case 'start_build': {
         const buildingType = data as BuildingType;
         this.startBuildPlacement(buildingType);
+        this.ui.markSelectionDirty();
+        this.ui.updateSelection(this.world.state);
         break;
       }
       case 'age_up':
         if (this.world.advanceAge(0)) {
           this.audio.playAgeUp();
         }
+        this.ui.markSelectionDirty();
         break;
       case 'selection_changed':
+        this.ui.markSelectionDirty();
         this.ui.updateSelection(this.world.state);
         break;
       case 'command_move':

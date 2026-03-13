@@ -22,6 +22,8 @@ export class GameUI {
   private minimapCanvas!: HTMLCanvasElement;
   private minimapCtx!: CanvasRenderingContext2D;
   private prevResources: Record<string, number> = {};
+  private lastSelectionKey = '';
+  private selectionDirty = true;
 
   constructor(container: HTMLElement, onEvent: UICallback) {
     this.container = container;
@@ -70,6 +72,24 @@ export class GameUI {
       <div class="menu-buttons">
         <button class="btn btn-primary" id="btn-start-campaign">⚔️ Begin Campaign</button>
         <button class="btn" id="btn-lore">📖 World of Aetheria</button>
+      </div>
+      <div class="agent-join-section">
+        <button class="btn btn-small" id="btn-show-agent-url">🤖 AI Agent Connect</button>
+        <div class="agent-url-panel" id="agent-url-panel" style="display:none">
+          <p class="agent-url-label">Connect an AI agent (Claude, Codex, etc.) using this URL:</p>
+          <div class="agent-url-box" id="agent-url-box"></div>
+          <div class="agent-url-options">
+            <label class="agent-opt"><input type="checkbox" id="agent-opt-autostart" checked> Auto-start game</label>
+            <div class="agent-faction-row">
+              <span>Faction:</span>
+              <select id="agent-faction-select">
+                <option value="SOLARI">Solari</option>
+                <option value="IRONROOT">Ironroot</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-small" id="btn-copy-agent-url">📋 Copy URL</button>
+        </div>
       </div>
     `;
     return screen;
@@ -159,6 +179,11 @@ export class GameUI {
   }
 
   init(): void {
+    this.selectionPanel.addEventListener('mousedown', (e) => e.stopPropagation());
+    this.selectionPanel.addEventListener('mouseup', (e) => e.stopPropagation());
+    this.selectionPanel.addEventListener('click', (e) => e.stopPropagation());
+    this.resourceBar.addEventListener('mousedown', (e) => e.stopPropagation());
+
     this.container.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
       const btn = target.closest('button');
@@ -206,7 +231,34 @@ export class GameUI {
       if (btn.id === 'btn-age-up') {
         this.onEvent('age_up');
       }
+      if (btn.id === 'btn-show-agent-url') {
+        const panel = document.getElementById('agent-url-panel')!;
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        this.updateAgentUrl();
+      }
+      if (btn.id === 'btn-copy-agent-url') {
+        const box = document.getElementById('agent-url-box')!;
+        navigator.clipboard.writeText(box.textContent || '').then(() => {
+          btn.textContent = '✅ Copied!';
+          setTimeout(() => { btn.textContent = '📋 Copy URL'; }, 2000);
+        });
+      }
     });
+
+    const autoStart = document.getElementById('agent-opt-autostart');
+    const factionSelect = document.getElementById('agent-faction-select');
+    autoStart?.addEventListener('change', () => this.updateAgentUrl());
+    factionSelect?.addEventListener('change', () => this.updateAgentUrl());
+  }
+
+  private updateAgentUrl(): void {
+    const box = document.getElementById('agent-url-box');
+    if (!box) return;
+    const autostart = (document.getElementById('agent-opt-autostart') as HTMLInputElement)?.checked;
+    const faction = (document.getElementById('agent-faction-select') as HTMLSelectElement)?.value || 'SOLARI';
+    const base = window.location.origin + window.location.pathname;
+    const url = `${base}?agent=1&autostart=${autostart ? '1' : '0'}&faction=${faction}`;
+    box.textContent = url;
   }
 
   setSelectedFaction(faction: Faction): void {
@@ -278,10 +330,26 @@ export class GameUI {
     if (ageEl) ageEl.textContent = `Age ${player.age}`;
   }
 
-  updateSelection(state: GameState): void {
-    this.selectionPanel.innerHTML = '';
+  markSelectionDirty(): void {
+    this.selectionDirty = true;
+  }
 
+  updateSelection(state: GameState): void {
     const selected = [...state.selectedIds];
+    const keyParts = selected.sort((a, b) => a - b).join(',');
+    let hpKey = '';
+    for (const id of selected) {
+      const u = state.units.get(id);
+      const b = state.buildings.get(id);
+      if (u) hpKey += `${u.hp},${u.state},${u.carryAmount},`;
+      if (b) hpKey += `${b.hp},${b.buildProgress},${b.productionProgress},${b.productionQueue.length},`;
+    }
+    const selKey = keyParts + '|' + hpKey;
+    if (!this.selectionDirty && selKey === this.lastSelectionKey) return;
+    this.lastSelectionKey = selKey;
+    this.selectionDirty = false;
+
+    this.selectionPanel.innerHTML = '';
     if (selected.length === 0) return;
 
     if (selected.length === 1) {

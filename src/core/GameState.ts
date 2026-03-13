@@ -666,6 +666,7 @@ export class GameWorld {
     const def = UNIT_DEFS[unit.type];
 
     let nearestEnemy: Unit | null = null;
+    let nearestEnemyBuilding: Building | null = null;
     let nearestDist = AGGRO_RANGE;
 
     for (const other of this.state.units.values()) {
@@ -680,6 +681,24 @@ export class GameWorld {
     if (nearestEnemy) {
       unit.state = UnitState.ATTACKING;
       unit.attackTargetId = nearestEnemy.id;
+      return;
+    }
+
+    for (const building of this.state.buildings.values()) {
+      if (building.owner === unit.owner || building.hp <= 0) continue;
+      const bDef = BUILDING_DEFS[building.type];
+      const centerX = building.tileX + bDef.size / 2;
+      const centerZ = building.tileZ + bDef.size / 2;
+      const dist = Math.hypot(unit.x - centerX, unit.z - centerZ);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestEnemyBuilding = building;
+      }
+    }
+
+    if (nearestEnemyBuilding) {
+      unit.state = UnitState.ATTACKING;
+      unit.attackTargetId = nearestEnemyBuilding.id;
       return;
     }
 

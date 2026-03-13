@@ -24,6 +24,10 @@ export class AIPlayer {
     this.playerId = playerId;
   }
 
+  private getOpponentId(): number {
+    return this.playerId === 0 ? 1 : 0;
+  }
+
   update(): void {
     const tick = this.world.state.tick;
     if (tick % TICK_RATE !== 0) return;
@@ -143,26 +147,34 @@ export class AIPlayer {
   private manageArmy(military: Unit[]): void {
     const tick = this.world.state.tick;
     const idleMilitary = military.filter((u) => u.state === UnitState.IDLE);
+    const opponentId = this.getOpponentId();
 
     if (idleMilitary.length >= this.attackWaveSize && tick - this.lastAttackTick > TICK_RATE * 20) {
       this.lastAttackTick = tick;
       this.attackWaveSize = Math.min(15, this.attackWaveSize + 2);
 
-      const enemyBuildings = this.world.getPlayerBuildings(0);
-      const enemyUnits = this.world.getPlayerUnits(0);
+      const enemyBuildings = this.world.getPlayerBuildings(opponentId);
+      const enemyUnits = this.world.getPlayerUnits(opponentId);
 
-      let target: { x: number; z: number } | null = null;
-      if (enemyBuildings.length > 0) {
-        const b = enemyBuildings[0];
-        const def = BUILDING_DEFS[b.type];
-        target = { x: b.tileX + def.size / 2, z: b.tileZ + def.size / 2 };
-      } else if (enemyUnits.length > 0) {
-        target = { x: enemyUnits[0].x, z: enemyUnits[0].z };
+      let targetPosition: { x: number; z: number } | null = null;
+      let targetBuildingId: number | null = null;
+      if (enemyUnits.length > 0) {
+        targetPosition = { x: enemyUnits[0].x, z: enemyUnits[0].z };
+      } else if (enemyBuildings.length > 0) {
+        const building = enemyBuildings[0];
+        const def = BUILDING_DEFS[building.type];
+        targetPosition = { x: building.tileX + def.size / 2, z: building.tileZ + def.size / 2 };
+        targetBuildingId = building.id;
       }
 
-      if (target) {
+      if (targetBuildingId !== null) {
+        this.world.commandAttack(
+          idleMilitary.map((u) => u.id),
+          targetBuildingId
+        );
+      } else if (targetPosition) {
         const ids = idleMilitary.map((u) => u.id);
-        this.world.commandMove(ids, target.x, target.z);
+        this.world.commandMove(ids, targetPosition.x, targetPosition.z);
 
         if (!this.hasTaunted) {
           this.hasTaunted = true;
@@ -200,7 +212,7 @@ export class AIPlayer {
   private manageTaunts(tick: number, military: Unit[]): void {
     if (tick - this.lastTauntTick < TICK_RATE * 45) return;
 
-    const playerUnits = this.world.getPlayerUnits(0);
+    const playerUnits = this.world.getPlayerUnits(this.getOpponentId());
     const myHp = military.reduce((sum, u) => sum + u.hp, 0);
     const enemyHp = playerUnits.reduce((sum, u) => sum + u.hp, 0);
 

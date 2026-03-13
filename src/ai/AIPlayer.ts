@@ -168,13 +168,14 @@ export class AIPlayer {
 
       let targetPosition: { x: number; z: number } | null = null;
       let targetBuildingId: number | null = null;
-      if (enemyUnits.length > 0) {
-        targetPosition = { x: enemyUnits[0].x, z: enemyUnits[0].z };
-      } else if (enemyBuildings.length > 0) {
-        const building = enemyBuildings[0];
+      const priorityBuilding = enemyBuildings.find((b) => b.type === BuildingType.CITADEL) ?? enemyBuildings[0];
+      if (priorityBuilding) {
+        const building = priorityBuilding;
         const def = BUILDING_DEFS[building.type];
         targetPosition = { x: building.tileX + def.size / 2, z: building.tileZ + def.size / 2 };
         targetBuildingId = building.id;
+      } else if (enemyUnits.length > 0) {
+        targetPosition = { x: enemyUnits[0].x, z: enemyUnits[0].z };
       }
 
       if (targetBuildingId !== null) {

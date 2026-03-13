@@ -22,6 +22,7 @@ class AetheriaGame {
   private uiUpdateCounter = 0;
   private gameLoopBound: ((dt: number, t: number) => void) | null = null;
   private lastDebugRenderLogAt = 0;
+  private lastSimulationTime = 0;
 
   constructor() {
     const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -118,6 +119,7 @@ class AetheriaGame {
     );
 
     this.ai = new AIPlayer(this.world, 1);
+    this.lastSimulationTime = 0;
 
     this.setupWorldEvents();
 
@@ -153,6 +155,9 @@ class AetheriaGame {
   private setupWorldEvents(): void {
     this.world.on((event, data) => {
       switch (event) {
+        case 'tick':
+          this.ai?.update();
+          break;
         case 'unit_created': {
           const unit = data as import('./types').Unit;
           const player = this.world.state.players[unit.owner];
@@ -207,6 +212,12 @@ class AetheriaGame {
   private gameLoop(_dt: number, t: number): void {
     if (this.world?.state.phase !== GamePhase.PLAYING) return;
 
+    const elapsedSeconds = this.lastSimulationTime > 0
+      ? Math.min(1, Math.max(0, t - this.lastSimulationTime))
+      : 0;
+    this.lastSimulationTime = t;
+    this.world.advance(elapsedSeconds);
+
     if (Date.now() - this.lastDebugRenderLogAt >= 30000) {
       this.lastDebugRenderLogAt = Date.now();
       // #region agent log
@@ -216,7 +227,6 @@ class AetheriaGame {
 
     this.controls?.update();
     this.terrain?.update(t);
-    this.ai?.update();
 
     const tiles = this.world?.map.tiles;
     this.entities?.updateUnits(this.world.state.units, this.world.state.selectedIds, t, this.scene.camera, tiles);

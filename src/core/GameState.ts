@@ -16,7 +16,7 @@ export class GameWorld {
   state: GameState;
   map: GameMap;
   private listeners: GameEventCb[] = [];
-  private tickTimer: ReturnType<typeof setInterval> | null = null;
+  private tickAccumulator = 0;
 
   constructor() {
     this.map = new GameMap(Math.floor(Math.random() * 100000));
@@ -381,14 +381,29 @@ export class GameWorld {
   }
 
   private startTicking(): void {
-    if (this.tickTimer) clearInterval(this.tickTimer);
-    this.tickTimer = setInterval(() => this.tick(), 1000 / TICK_RATE);
+    this.tickAccumulator = 0;
   }
 
   stopTicking(): void {
-    if (this.tickTimer) {
-      clearInterval(this.tickTimer);
-      this.tickTimer = null;
+    this.tickAccumulator = 0;
+  }
+
+  advance(elapsedSeconds: number): void {
+    if (this.state.phase !== GamePhase.PLAYING || elapsedSeconds <= 0) return;
+
+    this.tickAccumulator += elapsedSeconds;
+    const step = 1 / TICK_RATE;
+    let steps = 0;
+    const maxSteps = TICK_RATE * 5;
+
+    while (this.tickAccumulator >= step && steps < maxSteps) {
+      this.tickAccumulator -= step;
+      this.tick();
+      steps++;
+    }
+
+    if (steps === maxSteps) {
+      this.tickAccumulator = 0;
     }
   }
 

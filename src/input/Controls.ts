@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BuildingType, ResourceType, TerrainType, UnitState, UnitType, type Unit, type Vec2 } from '../types';
+import { BuildingType, TerrainType, UnitState } from '../types';
 import { BUILDING_DEFS, MAP_SIZE, TILE_SIZE, UNIT_DEFS } from '../config';
 import { SceneSetup } from '../render/SceneSetup';
 import { GameWorld } from '../core/GameState';
@@ -12,6 +12,7 @@ export class InputControls {
   private world: GameWorld;
   private entities: EntityRenderer;
   private onEvent: ControlEvent;
+  private canvas: HTMLCanvasElement;
 
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private keys = new Set<string>();
@@ -24,29 +25,52 @@ export class InputControls {
   private zoomSpeed = 2;
   private rotateSpeed = 0.02;
   private edgePanMargin = 30;
+  private readonly mouseDownHandler = (e: MouseEvent): void => this.onMouseDown(e);
+  private readonly mouseMoveHandler = (e: MouseEvent): void => this.onMouseMove(e);
+  private readonly mouseUpHandler = (e: MouseEvent): void => this.onMouseUp(e);
+  private readonly contextMenuHandler = (e: Event): void => e.preventDefault();
+  private readonly wheelHandler = (e: WheelEvent): void => this.onWheel(e);
+  private readonly keyDownHandler = (e: KeyboardEvent): void => {
+    this.keys.add(e.key.toLowerCase());
+    this.handleKeyDown(e);
+  };
+  private readonly keyUpHandler = (e: KeyboardEvent): void => {
+    this.keys.delete(e.key.toLowerCase());
+  };
 
   constructor(scene: SceneSetup, world: GameWorld, entities: EntityRenderer, onEvent: ControlEvent) {
     this.scene = scene;
     this.world = world;
     this.entities = entities;
     this.onEvent = onEvent;
+    this.canvas = this.scene.renderer.domElement;
     this.setupListeners();
   }
 
   private setupListeners(): void {
-    const canvas = this.scene.renderer.domElement;
+    this.canvas.addEventListener('mousedown', this.mouseDownHandler);
+    this.canvas.addEventListener('mousemove', this.mouseMoveHandler);
+    this.canvas.addEventListener('mouseup', this.mouseUpHandler);
+    this.canvas.addEventListener('contextmenu', this.contextMenuHandler);
+    this.canvas.addEventListener('wheel', this.wheelHandler, { passive: true });
 
-    canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
-    canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
-    canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-    canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: true });
+    window.addEventListener('keydown', this.keyDownHandler);
+    window.addEventListener('keyup', this.keyUpHandler);
+  }
 
-    window.addEventListener('keydown', (e) => {
-      this.keys.add(e.key.toLowerCase());
-      this.handleKeyDown(e);
-    });
-    window.addEventListener('keyup', (e) => this.keys.delete(e.key.toLowerCase()));
+  dispose(): void {
+    this.canvas.removeEventListener('mousedown', this.mouseDownHandler);
+    this.canvas.removeEventListener('mousemove', this.mouseMoveHandler);
+    this.canvas.removeEventListener('mouseup', this.mouseUpHandler);
+    this.canvas.removeEventListener('contextmenu', this.contextMenuHandler);
+    this.canvas.removeEventListener('wheel', this.wheelHandler);
+    window.removeEventListener('keydown', this.keyDownHandler);
+    window.removeEventListener('keyup', this.keyUpHandler);
+
+    this.keys.clear();
+    this.isDragging = false;
+    this.world.state.buildPlacementType = null;
+    this.entities.hideBuildGhost();
   }
 
   private onMouseDown(e: MouseEvent): void {
@@ -97,9 +121,6 @@ export class InputControls {
   private handleLeftClick(e: MouseEvent): void {
     const worldPos = this.scene.getWorldPositionFromMouse(e.clientX, e.clientY, this.groundPlane);
     if (!worldPos) return;
-
-    const tileX = Math.floor(worldPos.x / TILE_SIZE);
-    const tileZ = Math.floor(worldPos.z / TILE_SIZE);
 
     let clickedEntityId: number | null = null;
 
@@ -293,8 +314,13 @@ export class InputControls {
     });
 
     const workerId = workers.length > 0 ? workers[0] : this.findNearestWorker(tileX, tileZ);
-    if (workerId !== null) {
-      this.world.commandBuild(workerId, type, tileX, tileZ);
+    if (workerId === null) {
+      return;
+    }
+
+    const didPlaceBuilding = this.world.commandBuild(workerId, type, tileX, tileZ);
+    if (!didPlaceBuilding) {
+      return;
     }
 
     this.world.state.buildPlacementType = null;
@@ -316,7 +342,7 @@ export class InputControls {
     return best;
   }
 
-  update(dt: number): void {
+  update(): void {
     let dx = 0;
     let dz = 0;
     if (this.keys.has('w') || this.keys.has('arrowup') || this.mouseY < this.edgePanMargin) dx -= 1;

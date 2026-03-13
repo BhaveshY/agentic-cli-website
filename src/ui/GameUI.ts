@@ -1,5 +1,5 @@
 import {
-  Age, BuildingType, Faction, GamePhase, ResourceType, UnitState, UnitType,
+  Age, BuildingType, Faction, ResourceType, UnitState, UnitType,
   type Building, type GameState, type Unit,
 } from '../types';
 import { BUILDING_DEFS, LORE, UNIT_DEFS, AGE_COSTS } from '../config';

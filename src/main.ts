@@ -1,6 +1,6 @@
 import './style.css';
 import { Faction, GamePhase, BuildingType, UnitType } from './types';
-import { BUILDING_DEFS, TICK_RATE } from './config';
+import { BUILDING_DEFS } from './config';
 import { GameWorld } from './core/GameState';
 import { SceneSetup } from './render/SceneSetup';
 import { TerrainRenderer } from './render/Terrain';
@@ -82,7 +82,9 @@ class AetheriaGame {
 
   private startGame(faction: Faction): void {
     if (this.world) {
+      this.controls?.dispose();
       this.world.stopTicking();
+      this.world.state.phase = GamePhase.MENU;
     }
 
     if (this.terrain) {
@@ -93,6 +95,7 @@ class AetheriaGame {
       this.scene.scene.remove(this.entities.buildingGroup);
     }
 
+    this.uiUpdateCounter = 0;
     this.world = new GameWorld();
     this.entities = new EntityRenderer();
     this.scene.scene.add(this.entities.unitGroup);
@@ -195,10 +198,10 @@ class AetheriaGame {
     });
   }
 
-  private gameLoop(dt: number, t: number): void {
+  private gameLoop(_dt: number, t: number): void {
     if (this.world?.state.phase !== GamePhase.PLAYING) return;
 
-    this.controls?.update(dt);
+    this.controls?.update();
     this.terrain?.update(t);
     this.ai?.update();
 
@@ -215,7 +218,14 @@ class AetheriaGame {
   }
 
   private returnToMenu(): void {
-    this.world?.stopTicking();
+    this.controls?.dispose();
+    if (!this.world) return;
+
+    this.world.state.selectedIds.clear();
+    this.world.state.buildPlacementType = null;
+    this.world.state.phase = GamePhase.MENU;
+    this.world.stopTicking();
+    this.uiUpdateCounter = 0;
   }
 }
 

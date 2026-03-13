@@ -3,7 +3,7 @@ import {
   type Building, type Unit,
 } from '../types';
 import {
-  BUILDING_DEFS, MAP_SIZE, TICK_RATE, UNIT_DEFS, AI_TAUNTS,
+  BUILDING_DEFS, TICK_RATE, AI_TAUNTS,
 } from '../config';
 import { GameWorld } from '../core/GameState';
 
@@ -36,15 +36,15 @@ export class AIPlayer {
     const workers = units.filter((u) => u.type === UnitType.WORKER);
     const military = units.filter((u) => u.type !== UnitType.WORKER);
 
-    this.manageWorkers(workers, buildings);
+    this.manageWorkers(workers);
     this.manageBuildings(buildings, workers, player.age);
     this.manageProduction(buildings, workers, military, player);
     this.manageArmy(military);
-    this.manageAgeUp(player, buildings);
-    this.manageTaunts(tick, military, buildings);
+    this.manageAgeUp(player);
+    this.manageTaunts(tick, military);
   }
 
-  private manageWorkers(workers: Unit[], buildings: Building[]): void {
+  private manageWorkers(workers: Unit[]): void {
     const idleWorkers = workers.filter((w) => w.state === UnitState.IDLE);
 
     for (const worker of idleWorkers) {
@@ -191,13 +191,13 @@ export class AIPlayer {
     }
   }
 
-  private manageAgeUp(player: typeof this.world.state.players[0], buildings: Building[]): void {
+  private manageAgeUp(player: typeof this.world.state.players[0]): void {
     if (player.age < Age.ZENITH && this.world.state.tick > TICK_RATE * 60 * (player.age)) {
       this.world.advanceAge(this.playerId);
     }
   }
 
-  private manageTaunts(tick: number, military: Unit[], buildings: Building[]): void {
+  private manageTaunts(tick: number, military: Unit[]): void {
     if (tick - this.lastTauntTick < TICK_RATE * 45) return;
 
     const playerUnits = this.world.getPlayerUnits(0);

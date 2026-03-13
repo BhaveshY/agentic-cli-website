@@ -26,12 +26,12 @@ export class EntityRenderer {
     const group = new THREE.Group();
     const colors = FACTION_COLORS[faction];
     const mesh = this.buildUnitMesh(unit.type, colors);
-    mesh.scale.set(1.6, 1.6, 1.6);
+    mesh.scale.set(2.0, 2.0, 2.0);
     group.add(mesh);
 
-    const { healthBar, healthBg } = this.createHealthBar(1.0);
-    healthBg.position.y = 2.4;
-    healthBar.position.y = 2.4;
+    const { healthBar, healthBg } = this.createHealthBar(1.2);
+    healthBg.position.y = 2.8;
+    healthBar.position.y = 2.8;
     group.add(healthBg);
     group.add(healthBar);
 

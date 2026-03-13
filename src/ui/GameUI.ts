@@ -105,8 +105,10 @@ export class GameUI {
     const minimapWrap = this.el('div', 'minimap-wrap');
     this.minimapCanvas = document.createElement('canvas');
     this.minimapCanvas.className = 'minimap-canvas';
-    this.minimapCanvas.width = 160;
-    this.minimapCanvas.height = 160;
+    this.minimapCanvas.width = 200;
+    this.minimapCanvas.height = 200;
+    this.minimapCanvas.style.width = '180px';
+    this.minimapCanvas.style.height = '180px';
     this.minimapCtx = this.minimapCanvas.getContext('2d')!;
     minimapWrap.appendChild(this.minimapCanvas);
 

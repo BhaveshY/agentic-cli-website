@@ -23,7 +23,7 @@ export class TerrainRenderer {
   }
 
   private buildTerrain(map: GameMap): void {
-    const res = MAP_SIZE * 2;
+    const res = MAP_SIZE * 3;
     const geo = new THREE.PlaneGeometry(MAP_SIZE * TILE_SIZE, MAP_SIZE * TILE_SIZE, res, res);
     geo.rotateX(-Math.PI / 2);
 

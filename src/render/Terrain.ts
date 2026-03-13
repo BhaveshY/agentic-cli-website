@@ -6,6 +6,7 @@ import { GameMap } from '../core/GameMap';
 export class TerrainRenderer {
   readonly group = new THREE.Group();
   private treeMeshes: THREE.InstancedMesh[] = [];
+  private treeIndexByTile = new Map<string, number>();
   private resourceMarkers: THREE.Group[] = [];
   private waterMesh!: THREE.Mesh;
   private grassPatches: THREE.InstancedMesh | null = null;
@@ -196,11 +197,14 @@ export class TerrainRenderer {
     const tempScale = new THREE.Vector3();
     const mat = new THREE.Matrix4();
     let idx = 0;
+    this.treeIndexByTile.clear();
 
     for (let x = 0; x < MAP_SIZE; x++) {
       for (let z = 0; z < MAP_SIZE; z++) {
         const tile = map.tiles[x][z];
         if (tile.terrain !== TerrainType.FOREST) continue;
+
+        this.treeIndexByTile.set(`${x},${z}`, idx);
 
         const offsetX = (tile.treeVariant - 2) * 0.18;
         const offsetZ = ((tile.treeVariant * 7) % 5 - 2) * 0.15;
@@ -241,6 +245,27 @@ export class TerrainRenderer {
       this.group.add(inst);
     }
     this.treeMeshes = [trunkInst, leafLowerInst, leafUpperInst, leafTopInst];
+  }
+
+  hideTreeAt(tileX: number, tileZ: number): void {
+    const key = `${tileX},${tileZ}`;
+    const idx = this.treeIndexByTile.get(key);
+    if (idx === undefined) return;
+
+    const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
+    for (const inst of this.treeMeshes) {
+      inst.setMatrixAt(idx, zeroMatrix);
+      inst.instanceMatrix.needsUpdate = true;
+    }
+    this.treeIndexByTile.delete(key);
+  }
+
+  hideTreesInArea(tileX: number, tileZ: number, size: number): void {
+    for (let dx = 0; dx < size; dx++) {
+      for (let dz = 0; dz < size; dz++) {
+        this.hideTreeAt(tileX + dx, tileZ + dz);
+      }
+    }
   }
 
   private buildGrassDetails(map: GameMap): void {
@@ -429,7 +454,7 @@ export class TerrainRenderer {
   }
 
   private buildDustParticles(): void {
-    const count = 300;
+    const count = 100;
     const positions = new Float32Array(count * 3);
     const center = MAP_SIZE * TILE_SIZE / 2;
     for (let i = 0; i < count; i++) {
@@ -453,7 +478,7 @@ export class TerrainRenderer {
           const wx = x * TILE_SIZE + TILE_SIZE / 2;
           const wz = z * TILE_SIZE + TILE_SIZE / 2;
           const wy = tile.elevation * 5.5;
-          for (let i = 0; i < 6; i++) {
+          for (let i = 0; i < 2; i++) {
             crystalPositions.push(
               wx + (Math.random() - 0.5) * TILE_SIZE * 2,
               wy + 0.5 + Math.random() * 2.5,
@@ -492,7 +517,7 @@ export class TerrainRenderer {
     const leafPositions: number[] = [];
     for (let x = 0; x < MAP_SIZE; x++) {
       for (let z = 0; z < MAP_SIZE; z++) {
-        if (map.tiles[x][z].terrain === TerrainType.FOREST && Math.random() < 0.15) {
+        if (map.tiles[x][z].terrain === TerrainType.FOREST && Math.random() < 0.06) {
           const tile = map.tiles[x][z];
           const wx = x * TILE_SIZE + Math.random() * TILE_SIZE;
           const wz = z * TILE_SIZE + Math.random() * TILE_SIZE;

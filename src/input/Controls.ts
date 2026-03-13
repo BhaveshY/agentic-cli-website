@@ -81,6 +81,7 @@ export class InputControls {
   }
 
   private setupListeners(): void {
+    // All mouse events on canvas only — build placement requires clicking the game area
     this.canvas.addEventListener('mousedown', this.mouseDownHandler);
     this.canvas.addEventListener('mousemove', this.mouseMoveHandler);
     this.canvas.addEventListener('mouseup', this.mouseUpHandler);
@@ -142,11 +143,14 @@ export class InputControls {
 
     const dx = Math.abs(e.clientX - this.dragStart.x);
     const dy = Math.abs(e.clientY - this.dragStart.y);
+    const isClick = dx < 5 && dy < 5;
 
-    if (dx < 5 && dy < 5) {
+    if (isClick) {
       if (this.world.state.buildPlacementType) {
+        // Canvas click while in build mode — place the building
         this.handleBuildPlacement(e);
       } else {
+        // Normal selection click on canvas
         this.handleLeftClick(e);
       }
     } else if (dx > 10 || dy > 10) {
@@ -173,7 +177,7 @@ export class InputControls {
       const ux = unit.x * TILE_SIZE;
       const uz = unit.z * TILE_SIZE;
       const dist = Math.hypot(worldPos.x - ux, worldPos.z - uz);
-      if (dist < TILE_SIZE * 0.9) {
+      if (dist < TILE_SIZE * 1.5) {
         clickedEntityId = id;
         break;
       }
@@ -339,7 +343,7 @@ export class InputControls {
       }
     }
 
-    if (e.key === 's' && !e.ctrlKey && !e.shiftKey) {
+    if (e.key === 'x' || e.key === 'X') {
       for (const id of this.world.state.selectedIds) {
         const unit = this.world.state.units.get(id);
         if (unit) {
@@ -411,7 +415,10 @@ export class InputControls {
     if (!type) return;
 
     const worldPos = this.scene.getWorldPositionFromMouse(e.clientX, e.clientY, this.groundPlane);
-    if (!worldPos) return;
+    if (!worldPos) {
+      console.warn('[Build] No world position from mouse');
+      return;
+    }
 
     const tileX = Math.floor(worldPos.x / TILE_SIZE);
     const tileZ = Math.floor(worldPos.z / TILE_SIZE);
@@ -423,11 +430,36 @@ export class InputControls {
 
     const workerId = workers.length > 0 ? workers[0] : this.findNearestWorker(tileX, tileZ);
     if (workerId === null) {
+      console.warn('[Build] No worker found');
       return;
+    }
+
+    const def = BUILDING_DEFS[type];
+    // Check placement and give feedback on failure
+    if (!this.world.map.canPlaceBuilding(tileX, tileZ, def.size)) {
+      this.onEvent('notification', { text: 'Cannot build here — blocked terrain', type: 'warning' });
+      return;
+    }
+    if (def.requiresResource) {
+      let hasResource = false;
+      for (let dx = -1; dx <= def.size; dx++) {
+        for (let dz = -1; dz <= def.size; dz++) {
+          const tx = tileX + dx, tz = tileZ + dz;
+          if (this.world.map.inBounds(tx, tz)) {
+            const tile = this.world.map.tiles[tx][tz];
+            if (tile.hasResource === def.requiresResource && tile.resourceAmount > 0) hasResource = true;
+          }
+        }
+      }
+      if (!hasResource) {
+        this.onEvent('notification', { text: `Must build near ${def.requiresResource} resource`, type: 'warning' });
+        return;
+      }
     }
 
     const didPlaceBuilding = this.world.commandBuild(workerId, type, tileX, tileZ);
     if (!didPlaceBuilding) {
+      this.onEvent('notification', { text: 'Not enough resources', type: 'warning' });
       return;
     }
 

@@ -4,6 +4,7 @@ import {
   type Building, type Unit,
 } from '../types';
 import { BUILDING_DEFS, FACTION_COLORS, TILE_SIZE } from '../config';
+import { getModel, hasModel, applyFactionTint, normalizeModelScale, centerModelAtBase, getAnimations } from './AssetLoader';
 
 interface EntityVisual {
   group: THREE.Group;
@@ -24,17 +25,57 @@ export class EntityRenderer {
   private deathEffects: Array<{ group: THREE.Group; age: number }> = [];
   private projectiles: Array<{ mesh: THREE.Mesh; target: THREE.Vector3; speed: number; age: number }> = [];
   private unitTargetRotation = new Map<number, number>();
+  private unitMixers = new Map<number, THREE.AnimationMixer>();
+  private unitActions = new Map<number, Map<string, THREE.AnimationAction>>();
+  private unitCurrentAnim = new Map<number, string>();
+  private lastBuildProgress = new Map<number, number>();
+  private frustum = new THREE.Frustum();
+  private projScreenMatrix = new THREE.Matrix4();
+  private tmpVec3 = new THREE.Vector3();
 
   createUnitVisual(unit: Unit, faction: Faction): void {
     const group = new THREE.Group();
     const colors = FACTION_COLORS[faction];
-    const mesh = this.buildUnitMesh(unit.type, colors);
-    mesh.scale.set(2.4, 2.4, 2.4);
-    group.add(mesh);
+
+    let unitHeight = 3.0;
+    if (hasModel(unit.type)) {
+      const glb = getModel(unit.type)!;
+      normalizeModelScale(glb, 3.2);
+      centerModelAtBase(glb);
+      applyFactionTint(glb, colors);
+      group.add(glb);
+      unitHeight = 3.2;
+
+      // Set up animations — map game states to animation clips
+      const clips = getAnimations(unit.type);
+      if (clips.length > 0) {
+        const mixer = new THREE.AnimationMixer(glb);
+        const actions = new Map<string, THREE.AnimationAction>();
+
+        for (const clip of clips) {
+          const name = clip.name.replace('CharacterArmature|', '');
+          actions.set(name, mixer.clipAction(clip));
+        }
+
+        // Start with Idle
+        const idle = actions.get('Idle') || actions.get('Idle_Neutral');
+        if (idle) {
+          idle.play();
+          this.unitCurrentAnim.set(unit.id, 'Idle');
+        }
+
+        this.unitMixers.set(unit.id, mixer);
+        this.unitActions.set(unit.id, actions);
+      }
+    } else {
+      const mesh = this.buildUnitMesh(unit.type, colors);
+      mesh.scale.set(3.0, 3.0, 3.0);
+      group.add(mesh);
+    }
 
     const { healthBar, healthBg } = this.createHealthBar(1.4);
-    healthBg.position.y = 3.2;
-    healthBar.position.y = 3.2;
+    healthBg.position.y = unitHeight + 1.0;
+    healthBar.position.y = unitHeight + 1.0;
     group.add(healthBg);
     group.add(healthBar);
 
@@ -56,10 +97,11 @@ export class EntityRenderer {
   createBuildingVisual(building: Building, faction: Faction): void {
     const group = new THREE.Group();
     const colors = FACTION_COLORS[faction];
+    const def = BUILDING_DEFS[building.type];
+
+    // Use the handcrafted procedural buildings — they're higher quality than generic GLBs
     const mesh = this.buildBuildingMesh(building.type, colors);
     group.add(mesh);
-
-    const def = BUILDING_DEFS[building.type];
     const barWidth = def.size * TILE_SIZE * 0.8;
     const { healthBar, healthBg } = this.createHealthBar(barWidth);
     healthBg.position.y = this.getBuildingHeight(building.type) + 0.5;
@@ -883,6 +925,17 @@ export class EntityRenderer {
   }
 
   updateUnits(units: Map<number, Unit>, selectedIds: Set<number>, t: number, camera?: THREE.Camera, tiles?: { elevation: number }[][]): void {
+    if (camera) {
+      this.projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      this.frustum.setFromProjectionMatrix(this.projScreenMatrix);
+    }
+
+    // Tick all animation mixers (dt ~16ms at 60fps)
+    const dt = 0.016;
+    for (const [id, mixer] of this.unitMixers) {
+      mixer.update(dt);
+    }
+
     for (const [id, unit] of units) {
       if (unit.state === UnitState.DEAD) {
         const vis = this.unitVisuals.get(id);
@@ -890,6 +943,9 @@ export class EntityRenderer {
           this.unitGroup.remove(vis.group);
           this.unitVisuals.delete(id);
         }
+        this.unitMixers.delete(id);
+        this.unitActions.delete(id);
+        this.unitCurrentAnim.delete(id);
         continue;
       }
 
@@ -901,19 +957,54 @@ export class EntityRenderer {
       const groundY = tiles ? this.getTerrainHeight(unit.x, unit.z, tiles) : 0;
       vis.group.position.y = groundY;
 
+      // Skip detailed animation updates for units outside the camera frustum
+      if (camera) {
+        this.tmpVec3.set(vis.group.position.x, vis.group.position.y, vis.group.position.z);
+        if (!this.frustum.containsPoint(this.tmpVec3)) {
+          vis.healthBar.visible = false;
+          vis.healthBg.visible = false;
+          vis.selectionRing.visible = false;
+          continue;
+        }
+      }
+
       const isMoving = unit.state === UnitState.MOVING || unit.state === UnitState.RETURNING;
       const isAttacking = unit.state === UnitState.ATTACKING;
       const isGathering = unit.state === UnitState.GATHERING;
       const isBuilding = unit.state === UnitState.BUILDING;
 
-      if (isMoving) {
-        vis.group.position.y = groundY + Math.sin(t * 10) * 0.06;
-      } else if (isAttacking) {
-        vis.group.position.y = groundY + Math.abs(Math.sin(t * 12)) * 0.08;
-      } else if (isGathering || isBuilding) {
-        if (vis.group.children[0]) vis.group.children[0].rotation.z = Math.sin(t * 6) * 0.12;
-      } else {
-        vis.group.position.y = groundY + Math.sin(t * 2 + id) * 0.015;
+      // Switch animation based on state
+      let targetAnim = 'Idle';
+      if (isMoving) targetAnim = 'Run';
+      else if (isAttacking) targetAnim = 'Sword_Slash';
+      else if (isGathering || isBuilding) targetAnim = 'Interact';
+
+      const currentAnim = this.unitCurrentAnim.get(id);
+      if (currentAnim !== targetAnim) {
+        const actions = this.unitActions.get(id);
+        if (actions) {
+          const oldAction = actions.get(currentAnim || 'Idle');
+          const newAction = actions.get(targetAnim) || actions.get('Idle');
+          if (newAction) {
+            if (oldAction) oldAction.fadeOut(0.2);
+            newAction.reset().fadeIn(0.2).play();
+            this.unitCurrentAnim.set(id, targetAnim);
+          }
+        }
+      }
+
+      // Subtle position offsets (no bobbing for GLB models — animation handles it)
+      if (!this.unitActions.has(id)) {
+        // Procedural fallback — keep the old bobbing
+        if (isMoving) {
+          vis.group.position.y = groundY + Math.sin(t * 10) * 0.06;
+        } else if (isAttacking) {
+          vis.group.position.y = groundY + Math.abs(Math.sin(t * 12)) * 0.08;
+        } else if (isGathering || isBuilding) {
+          if (vis.group.children[0]) vis.group.children[0].rotation.z = Math.sin(t * 6) * 0.12;
+        } else {
+          vis.group.position.y = groundY + Math.sin(t * 2 + id) * 0.015;
+        }
       }
 
       let targetAngle: number | null = null;
@@ -965,16 +1056,16 @@ export class EntityRenderer {
           vis.healthBg.quaternion.copy(camera.quaternion);
         }
       }
+    }
 
-      for (const marker of this.moveMarkers) {
-        (marker.material as THREE.MeshBasicMaterial).opacity = 0.4 + Math.sin(t * 6) * 0.3;
-        const parentGroup = marker.userData.parentGroup as THREE.Group | undefined;
-        if (parentGroup) {
-          parentGroup.scale.setScalar(1 + Math.sin(t * 5) * 0.12);
-          parentGroup.rotation.z = t * 1.5;
-        } else {
-          marker.scale.setScalar(1 + Math.sin(t * 4) * 0.15);
-        }
+    for (const marker of this.moveMarkers) {
+      (marker.material as THREE.MeshBasicMaterial).opacity = 0.4 + Math.sin(t * 6) * 0.3;
+      const parentGroup = marker.userData.parentGroup as THREE.Group | undefined;
+      if (parentGroup) {
+        parentGroup.scale.setScalar(1 + Math.sin(t * 5) * 0.12);
+        parentGroup.rotation.z = t * 1.5;
+      } else {
+        marker.scale.setScalar(1 + Math.sin(t * 4) * 0.15);
       }
     }
   }
@@ -1008,19 +1099,29 @@ export class EntityRenderer {
       }
 
       if (!building.isComplete) {
-        const progress = building.buildProgress / 100;
-        const eased = progress * progress * (3 - 2 * progress);
-        for (const child of vis.group.children) {
-          if (child === vis.healthBar || child === vis.healthBg || child === vis.selectionRing) continue;
-          child.scale.y = Math.max(0.05, eased);
-          if (child instanceof THREE.Mesh) {
-            const mat = child.material;
-            if (mat instanceof THREE.MeshStandardMaterial) {
-              mat.opacity = 0.4 + eased * 0.6;
-              mat.transparent = progress < 1;
-            }
+        const prevProgress = this.lastBuildProgress.get(id) ?? -1;
+        const currentProgress = building.buildProgress;
+        if (currentProgress !== prevProgress) {
+          this.lastBuildProgress.set(id, currentProgress);
+          const progress = currentProgress / 100;
+          const eased = progress * progress * (3 - 2 * progress);
+          for (const child of vis.group.children) {
+            if (child === vis.healthBar || child === vis.healthBg || child === vis.selectionRing) continue;
+            child.scale.y = Math.max(0.05, eased);
+            child.traverse((node) => {
+              if (node instanceof THREE.Mesh) {
+                const mat = node.material;
+                if (mat instanceof THREE.MeshStandardMaterial) {
+                  mat.opacity = 0.4 + eased * 0.6;
+                  mat.transparent = progress < 1;
+                }
+              }
+            });
           }
         }
+      } else {
+        // Clean up tracking once building is complete
+        this.lastBuildProgress.delete(id);
       }
 
       const hpRatio = building.hp / building.maxHp;
@@ -1046,6 +1147,9 @@ export class EntityRenderer {
       this.spawnDeathEffect(uVis.group.position.clone(), 0.5);
       this.unitGroup.remove(uVis.group);
       this.unitVisuals.delete(id);
+      this.unitMixers.delete(id);
+      this.unitActions.delete(id);
+      this.unitCurrentAnim.delete(id);
     }
     const bVis = this.buildingVisuals.get(id);
     if (bVis) {

@@ -146,7 +146,7 @@ export class GameUI {
     });
 
     const shortcuts = this.el('div', 'shortcuts-hint');
-    shortcuts.innerHTML = 'Q/E Rotate  •  WASD Pan  •  Scroll Zoom  •  S Stop  •  Esc Deselect  •  Space Home  •  Tab Cycle';
+    shortcuts.textContent = 'Q/E Rotate \u2022 WASD Pan \u2022 Scroll Zoom \u2022 X Stop \u2022 Esc Deselect \u2022 Space Home \u2022 Tab Cycle';
 
     hud.append(this.resourceBar, this.notificationArea, this.selectionPanel, minimapWrap, shortcuts);
     return hud;
@@ -181,7 +181,7 @@ export class GameUI {
   init(): void {
     this.selectionPanel.addEventListener('mousedown', (e) => e.stopPropagation());
     this.selectionPanel.addEventListener('mouseup', (e) => e.stopPropagation());
-    this.selectionPanel.addEventListener('click', (e) => e.stopPropagation());
+    // NOTE: Do NOT stopPropagation on click — it blocks event delegation for build/train buttons
     this.resourceBar.addEventListener('mousedown', (e) => e.stopPropagation());
 
     this.container.addEventListener('click', (e) => {

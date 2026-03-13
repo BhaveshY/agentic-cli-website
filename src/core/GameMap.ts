@@ -88,7 +88,7 @@ export class GameMap {
           Math.pow((x - this.width / 2) / (this.width / 2), 2) +
           Math.pow((z - this.height / 2) / (this.height / 2), 2)
         );
-        const islandFalloff = Math.max(0, 1 - distFromCenter * 0.75);
+        const islandFalloff = Math.max(0, 1 - distFromCenter * 0.65);
         const finalElevation = elevation * islandFalloff;
 
         let terrain: TerrainType;
@@ -102,7 +102,7 @@ export class GameMap {
         } else if (finalElevation > 0.75) {
           terrain = TerrainType.MOUNTAIN;
           passable = false;
-        } else if (finalElevation > 0.38 && rand() < 0.55) {
+        } else if (finalElevation > 0.38 && rand() < 0.25) {
           terrain = TerrainType.FOREST;
         } else {
           terrain = TerrainType.GRASS;
@@ -128,18 +128,15 @@ export class GameMap {
 
   private placeForests(): void {
     const forestZones = [
-      { cx: 10, cz: 3 }, { cx: 3, cz: 10 }, { cx: 10, cz: 10 },
-      { cx: this.width - 11, cz: this.height - 4 },
-      { cx: this.width - 4, cz: this.height - 11 },
-      { cx: this.width - 11, cz: this.height - 11 },
-      { cx: Math.floor(this.width / 2) - 4, cz: Math.floor(this.height / 2) },
-      { cx: Math.floor(this.width / 2) + 4, cz: Math.floor(this.height / 2) },
-      { cx: Math.floor(this.width / 2), cz: Math.floor(this.height / 2) - 4 },
-      { cx: Math.floor(this.width / 2), cz: Math.floor(this.height / 2) + 4 },
+      { cx: 15, cz: 5 }, { cx: 5, cz: 15 },
+      { cx: this.width - 16, cz: this.height - 6 },
+      { cx: this.width - 6, cz: this.height - 16 },
+      { cx: Math.floor(this.width / 2) - 6, cz: Math.floor(this.height / 2) + 2 },
+      { cx: Math.floor(this.width / 2) + 6, cz: Math.floor(this.height / 2) - 2 },
     ];
     for (const { cx, cz } of forestZones) {
-      for (let dx = -2; dx <= 2; dx++) {
-        for (let dz = -2; dz <= 2; dz++) {
+      for (let dx = -3; dx <= 3; dx++) {
+        for (let dz = -3; dz <= 3; dz++) {
           const x = cx + dx;
           const z = cz + dz;
           if (!this.inBounds(x, z)) continue;
@@ -156,18 +153,18 @@ export class GameMap {
 
   private clearStartingAreas(): void {
     const zones = [
-      { cx: 5, cz: 5 },
-      { cx: this.width - 6, cz: this.height - 6 },
+      { cx: 8, cz: 8 },
+      { cx: this.width - 9, cz: this.height - 9 },
     ];
     for (const { cx, cz } of zones) {
-      for (let dx = -4; dx <= 4; dx++) {
-        for (let dz = -4; dz <= 4; dz++) {
+      for (let dx = -6; dx <= 6; dx++) {
+        for (let dz = -6; dz <= 6; dz++) {
           const x = cx + dx;
           const z = cz + dz;
           if (x >= 0 && x < this.width && z >= 0 && z < this.height) {
             this.tiles[x][z].terrain = TerrainType.GRASS;
             this.tiles[x][z].passable = true;
-            this.tiles[x][z].elevation = Math.max(0.25, this.tiles[x][z].elevation);
+            this.tiles[x][z].elevation = Math.max(0.3, this.tiles[x][z].elevation);
           }
         }
       }
@@ -382,7 +379,7 @@ export class GameMap {
         if (!this.inBounds(x, z)) return false;
         const tile = this.tiles[x][z];
         if (!tile.passable || tile.buildingId !== null) return false;
-        if (tile.terrain === TerrainType.WATER || tile.terrain === TerrainType.MOUNTAIN)
+        if (tile.terrain === TerrainType.WATER || tile.terrain === TerrainType.MOUNTAIN || tile.terrain === TerrainType.FOREST)
           return false;
       }
     }

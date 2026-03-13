@@ -207,7 +207,7 @@ export class AIPlayer {
   }
 
   private manageAgeUp(player: typeof this.world.state.players[0]): void {
-    if (player.age < Age.ZENITH && this.world.state.tick > TICK_RATE * 60 * (player.age)) {
+    if (player.age < Age.ZENITH && this.world.state.tick > TICK_RATE * 180 * (player.age)) {
       this.world.advanceAge(this.playerId);
     }
   }

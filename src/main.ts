@@ -13,6 +13,7 @@ import { GameAudio } from './audio/Sounds';
 import { installAgentBridge } from './agent/AgentBridge';
 import { readAgentModeConfig } from './agent/AgentMode';
 import { AgentSessionClient } from './agent/AgentSessionClient';
+import { preloadAllModels } from './render/AssetLoader';
 import type { AgentModeConfig, AgentSnapshot } from './agent/AgentProtocol';
 import type { AgentController } from './agent/AgentRuntime';
 
@@ -28,8 +29,13 @@ class AetheriaGame implements AgentController {
   private uiUpdateCounter = 0;
   private gameLoopBound: ((dt: number, t: number) => void) | null = null;
   private lastSimulationTime = 0;
+  private minimapDirty = true;
+  private lastCameraX = 0;
+  private lastCameraZ = 0;
   private agentConfig: AgentModeConfig;
   private sessionClient: AgentSessionClient | null = null;
+
+  private assetsReady = false;
 
   constructor() {
     const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -47,12 +53,20 @@ class AetheriaGame implements AgentController {
     }
 
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !this.world) {
+      if (e.key === 'Enter' && !this.world && this.assetsReady) {
         this.startGame(Faction.SOLARI);
       }
     });
 
     this.scene.start();
+    this.loadAssetsAndStart();
+  }
+
+  private async loadAssetsAndStart(): Promise<void> {
+    await preloadAllModels((loaded, total) => {
+      console.log(`[Aetheria] Assets: ${loaded}/${total}`);
+    });
+    this.assetsReady = true;
 
     if (this.agentConfig.enabled && this.agentConfig.autostart) {
       this.startGame(this.agentConfig.faction);
@@ -91,9 +105,16 @@ class AetheriaGame implements AgentController {
       case 'age_up':
         if (this.world.advanceAge(0)) {
           this.audio.playAgeUp();
+        } else {
+          this.ui.addNotification('Not enough resources to advance age', 'warning');
         }
         this.ui.markSelectionDirty();
         break;
+      case 'notification': {
+        const n = data as { text: string; type: string };
+        this.ui.addNotification(n.text, n.type);
+        break;
+      }
       case 'selection_changed':
         this.ui.markSelectionDirty();
         this.ui.updateSelection(this.world.state);
@@ -507,22 +528,28 @@ class AetheriaGame implements AgentController {
           const unit = data as import('./types').Unit;
           const player = this.world.state.players[unit.owner];
           this.entities.createUnitVisual(unit, player.faction);
+          this.minimapDirty = true;
           break;
         }
         case 'building_created': {
           const building = data as import('./types').Building;
           const player = this.world.state.players[building.owner];
           this.entities.createBuildingVisual(building, player.faction);
+          const bDef = BUILDING_DEFS[building.type];
+          this.terrain.hideTreesInArea(building.tileX, building.tileZ, bDef.size);
+          this.minimapDirty = true;
           break;
         }
         case 'unit_died': {
           const unit = data as import('./types').Unit;
           this.entities.removeEntity(unit.id);
+          this.minimapDirty = true;
           break;
         }
         case 'building_destroyed': {
           const building = data as import('./types').Building;
           this.entities.removeEntity(building.id);
+          this.minimapDirty = true;
           break;
         }
         case 'attack': {
@@ -588,14 +615,19 @@ class AetheriaGame implements AgentController {
     this.entities?.updateProjectiles(_dt);
 
     this.uiUpdateCounter++;
-    if (this.uiUpdateCounter % 6 === 0) {
+    if (this.uiUpdateCounter % 10 === 0) {
       this.ui.updateResources(this.world.state);
       this.ui.updateSelection(this.world.state);
-      this.ui.updateMinimap(
-        this.world.state,
-        this.scene.cameraTarget.x,
-        this.scene.cameraTarget.z
-      );
+
+      const camX = this.scene.cameraTarget.x;
+      const camZ = this.scene.cameraTarget.z;
+      const cameraMoved = Math.abs(camX - this.lastCameraX) > 0.5 || Math.abs(camZ - this.lastCameraZ) > 0.5;
+      if (this.minimapDirty || cameraMoved) {
+        this.ui.updateMinimap(this.world.state, camX, camZ);
+        this.lastCameraX = camX;
+        this.lastCameraZ = camZ;
+        this.minimapDirty = false;
+      }
     }
   }
 

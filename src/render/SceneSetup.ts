@@ -10,6 +10,8 @@ export class SceneSetup {
   private clock = new THREE.Clock();
   private animCallbacks: Array<(dt: number, t: number) => void> = [];
   private skyMaterial: THREE.ShaderMaterial | null = null;
+  private shadowFrameCounter = 0;
+  private readonly SHADOW_UPDATE_INTERVAL = 30;
 
   cameraTarget = new THREE.Vector3(MAP_SIZE / 2 * TILE_SIZE, 0, MAP_SIZE / 2 * TILE_SIZE);
   cameraDistance = 22;
@@ -27,10 +29,11 @@ export class SceneSetup {
     this.updateCameraPosition();
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.autoUpdate = true;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.35;
 
@@ -51,7 +54,7 @@ export class SceneSetup {
     const sun = new THREE.DirectionalLight(0xffeedd, 1.8);
     sun.position.set(25, 45, 15);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(4096, 4096);
+    sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = 130;
     sun.shadow.camera.left = -65;

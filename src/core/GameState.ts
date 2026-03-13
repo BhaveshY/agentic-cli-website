@@ -59,8 +59,8 @@ export class GameWorld {
       this.createPlayer(1, aiFaction, true),
     ];
 
-    this.spawnStartingBase(0, 5, 5);
-    this.spawnStartingBase(1, MAP_SIZE - 6, MAP_SIZE - 6);
+    this.spawnStartingBase(0, 8, 8);
+    this.spawnStartingBase(1, MAP_SIZE - 9, MAP_SIZE - 9);
 
     this.state.phase = GamePhase.PLAYING;
     this.emit('game_start');
@@ -84,9 +84,9 @@ export class GameWorld {
     this.createBuilding(BuildingType.CITADEL, playerId, cx - 1, cz - 1, true);
 
     const workerPositions: Vec2[] = [
-      { x: cx - 2, z: cz + 2 },
+      { x: cx - 1, z: cz + 2 },
       { x: cx, z: cz + 2 },
-      { x: cx + 2, z: cz + 2 },
+      { x: cx + 1, z: cz + 2 },
     ];
     for (const pos of workerPositions) {
       const unit = this.createUnit(UnitType.WORKER, playerId, pos.x, pos.z);
@@ -94,6 +94,20 @@ export class GameWorld {
         this.autoAssignWorker(unit);
       }
     }
+  }
+
+  private isAdjacentToWater(x: number, z: number): boolean {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        if (dx === 0 && dz === 0) continue;
+        const nx = x + dx;
+        const nz = z + dz;
+        if (this.map.inBounds(nx, nz) && this.map.tiles[nx][nz].terrain === TerrainType.WATER) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   autoAssignWorker(unit: Unit): void {
@@ -106,18 +120,21 @@ export class GameWorld {
     let bestTarget: { x: number; z: number } | null = null;
     let bestDist = Infinity;
 
-    if (aether) {
+    // Skip targets adjacent to water to prevent workers from standing in the ocean
+    if (aether && !this.isAdjacentToWater(aether.x, aether.z)) {
       const d = Math.abs(ux - aether.x) + Math.abs(uz - aether.z);
       if (d < bestDist) { bestDist = d; bestTarget = aether; }
     }
-    if (forest) {
+    if (forest && !this.isAdjacentToWater(forest.x, forest.z)) {
       const d = Math.abs(ux - forest.x) + Math.abs(uz - forest.z);
       if (d < bestDist) { bestDist = d; bestTarget = forest; }
     }
 
     if (!bestTarget) {
       const farForest = this.map.findNearestForest(ux, uz, 25);
-      if (farForest) bestTarget = farForest;
+      if (farForest && !this.isAdjacentToWater(farForest.x, farForest.z)) {
+        bestTarget = farForest;
+      }
     }
 
     if (bestTarget) {
@@ -201,8 +218,12 @@ export class GameWorld {
 
     for (let dx = 0; dx < def.size; dx++) {
       for (let dz = 0; dz < def.size; dz++) {
-        this.map.tiles[tileX + dx][tileZ + dz].buildingId = id;
-        this.map.tiles[tileX + dx][tileZ + dz].passable = false;
+        const tile = this.map.tiles[tileX + dx][tileZ + dz];
+        tile.buildingId = id;
+        tile.passable = false;
+        if (tile.terrain === TerrainType.FOREST) {
+          tile.terrain = TerrainType.GRASS;
+        }
       }
     }
 

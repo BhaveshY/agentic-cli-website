@@ -109,8 +109,7 @@ class AetheriaGame implements AgentController {
         const mapH = this.world?.state.mapHeight ?? MAP_SIZE;
         const worldX = (px / 200) * mapW * TILE_SIZE;
         const worldZ = (py / 200) * mapH * TILE_SIZE;
-        this.scene.cameraTarget.set(worldX, 0, worldZ);
-        this.scene.updateCameraPosition();
+        this.scene.smoothPanTo(worldX, worldZ);
         break;
       }
     }

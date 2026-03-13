@@ -362,12 +362,10 @@ export class InputControls {
       );
       if (citadel) {
         const def = BUILDING_DEFS[citadel.type];
-        this.scene.cameraTarget.set(
+        this.scene.smoothPanTo(
           (citadel.tileX + def.size / 2) * TILE_SIZE,
-          0,
           (citadel.tileZ + def.size / 2) * TILE_SIZE
         );
-        this.scene.updateCameraPosition();
       }
     }
 
@@ -384,8 +382,7 @@ export class InputControls {
         this.world.state.selectedIds.clear();
         this.world.state.selectedIds.add(ownUnits[nextIdx][0]);
         const unit = ownUnits[nextIdx][1];
-        this.scene.cameraTarget.set(unit.x * TILE_SIZE, 0, unit.z * TILE_SIZE);
-        this.scene.updateCameraPosition();
+        this.scene.smoothPanTo(unit.x * TILE_SIZE, unit.z * TILE_SIZE);
         this.onEvent('selection_changed');
       }
     }

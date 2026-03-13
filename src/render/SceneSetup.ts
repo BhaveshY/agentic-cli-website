@@ -15,11 +15,13 @@ export class SceneSetup {
   cameraDistance = 22;
   cameraAngle = -Math.PI / 4;
   cameraPitch = Math.PI / 3;
+  private smoothTarget = new THREE.Vector3(MAP_SIZE / 2 * TILE_SIZE, 0, MAP_SIZE / 2 * TILE_SIZE);
+  private smoothing = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x7ec8e3);
-    this.scene.fog = new THREE.Fog(0x9ad4e8, 50, 110);
+    this.scene.background = new THREE.Color(0x88cce8);
+    this.scene.fog = new THREE.Fog(0xa8d8ec, 45, 105);
 
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 200);
     this.updateCameraPosition();
@@ -30,7 +32,7 @@ export class SceneSetup {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.3;
+    this.renderer.toneMappingExposure = 1.35;
 
     this.setupLighting();
     this.setupSky();
@@ -164,6 +166,11 @@ export class SceneSetup {
     this.scene.add(new THREE.Mesh(skyGeo, skyMat));
   }
 
+  smoothPanTo(x: number, z: number): void {
+    this.smoothTarget.set(x, 0, z);
+    this.smoothing = true;
+  }
+
   updateCameraPosition(): void {
     const x = this.cameraTarget.x + Math.sin(this.cameraAngle) * Math.cos(this.cameraPitch) * this.cameraDistance;
     const y = this.cameraTarget.y + Math.sin(this.cameraPitch) * this.cameraDistance;
@@ -184,6 +191,19 @@ export class SceneSetup {
 
       if (this.skyMaterial) {
         this.skyMaterial.uniforms.time.value = t;
+      }
+
+      if (this.smoothing) {
+        const dx = this.smoothTarget.x - this.cameraTarget.x;
+        const dz = this.smoothTarget.z - this.cameraTarget.z;
+        if (Math.abs(dx) + Math.abs(dz) < 0.1) {
+          this.cameraTarget.copy(this.smoothTarget);
+          this.smoothing = false;
+        } else {
+          this.cameraTarget.x += dx * Math.min(1, 8 * dt);
+          this.cameraTarget.z += dz * Math.min(1, 8 * dt);
+        }
+        this.updateCameraPosition();
       }
 
       for (const cb of this.animCallbacks) cb(dt, t);

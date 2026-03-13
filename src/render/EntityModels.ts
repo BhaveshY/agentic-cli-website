@@ -441,92 +441,130 @@ export class EntityRenderer {
 
   private buildBuildingMesh(type: BuildingType, colors: { primary: number; secondary: number; accent: number }): THREE.Group {
     const g = new THREE.Group();
-    const pri = new THREE.MeshStandardMaterial({ color: colors.primary, roughness: 0.55, metalness: 0.15, flatShading: true });
-    const acc = new THREE.MeshStandardMaterial({ color: colors.accent, roughness: 0.2, metalness: 0.35, flatShading: true });
-    const stoneLight = new THREE.MeshStandardMaterial({ color: 0xa0a098, roughness: 0.85, flatShading: true });
-    const stoneDark = new THREE.MeshStandardMaterial({ color: 0x787870, roughness: 0.9, flatShading: true });
-    const wood = new THREE.MeshStandardMaterial({ color: 0x8B5A2B, roughness: 0.75, flatShading: true });
-    const woodDark = new THREE.MeshStandardMaterial({ color: 0x5a3a1a, roughness: 0.8, flatShading: true });
-    const roofTile = new THREE.MeshStandardMaterial({ color: 0xb85c38, roughness: 0.7, flatShading: true });
+    const pri = new THREE.MeshStandardMaterial({ color: colors.primary, roughness: 0.5, metalness: 0.15 });
+    const acc = new THREE.MeshStandardMaterial({ color: colors.accent, roughness: 0.25, metalness: 0.3 });
+    const stoneLight = new THREE.MeshStandardMaterial({ color: 0xa8a8a0, roughness: 0.8 });
+    const stoneDark = new THREE.MeshStandardMaterial({ color: 0x7a7a72, roughness: 0.85 });
+    const wood = new THREE.MeshStandardMaterial({ color: 0x8B5A2B, roughness: 0.7 });
+    const woodDark = new THREE.MeshStandardMaterial({ color: 0x5a3a1a, roughness: 0.75 });
+    const roofTile = new THREE.MeshStandardMaterial({ color: 0xb85c38, roughness: 0.65 });
 
     const s = TILE_SIZE;
 
     switch (type) {
       case BuildingType.CITADEL: {
-        const wallBase = new THREE.Mesh(new THREE.BoxGeometry(s * 2.8, 0.6, s * 2.8), stoneDark);
-        wallBase.position.y = 0.3;
+        const wallBase = new THREE.Mesh(new THREE.BoxGeometry(s * 2.8, 0.5, s * 2.8), stoneDark);
+        wallBase.position.y = 0.25;
         wallBase.castShadow = true;
         g.add(wallBase);
+        const baseStep = new THREE.Mesh(new THREE.BoxGeometry(s * 3.0, 0.15, s * 3.0), stoneDark);
+        baseStep.position.y = 0.08;
+        g.add(baseStep);
 
-        const wallHeight = 1.6;
+        const wallHeight = 1.8;
         const walls = [
-          { x: 0, z: -s * 1.2, sx: s * 2.6, sz: 0.25 },
-          { x: 0, z: s * 1.2, sx: s * 2.6, sz: 0.25 },
-          { x: -s * 1.2, z: 0, sx: 0.25, sz: s * 2.4 },
-          { x: s * 1.2, z: 0, sx: 0.25, sz: s * 2.4 },
+          { x: 0, z: -s * 1.2, sx: s * 2.6, sz: 0.3 },
+          { x: 0, z: s * 1.2, sx: s * 2.6, sz: 0.3 },
+          { x: -s * 1.2, z: 0, sx: 0.3, sz: s * 2.4 },
+          { x: s * 1.2, z: 0, sx: 0.3, sz: s * 2.4 },
         ];
         for (const w of walls) {
           const wall = new THREE.Mesh(new THREE.BoxGeometry(w.sx, wallHeight, w.sz), stoneLight);
-          wall.position.set(w.x, wallHeight / 2 + 0.6, w.z);
+          wall.position.set(w.x, wallHeight / 2 + 0.5, w.z);
           wall.castShadow = true;
           g.add(wall);
+          const wallTop = new THREE.Mesh(new THREE.BoxGeometry(w.sx + 0.05, 0.08, w.sz + 0.06), stoneLight);
+          wallTop.position.set(w.x, wallHeight + 0.55, w.z);
+          g.add(wallTop);
         }
 
-        this.addBattlements(g, stoneLight, 0, wallHeight + 0.7, 0, s * 1.15, 16);
+        this.addBattlements(g, stoneLight, 0, wallHeight + 0.7, 0, s * 1.18, 20);
 
-        const gate = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), woodDark);
-        gate.position.set(0, 1.0, s * 1.22);
+        const gate = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.9, 0.35), woodDark);
+        gate.position.set(0, 0.95, s * 1.22);
         g.add(gate);
-        const gateArch = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.3, 8, 1, false, 0, Math.PI), stoneLight);
+        const gateArch = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.35, 12, 1, false, 0, Math.PI), stoneLight);
         gateArch.position.set(0, 1.45, s * 1.22);
         gateArch.rotation.x = Math.PI / 2;
         g.add(gateArch);
+        const gateFrame = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.9, 0.08), stoneLight);
+        gateFrame.position.set(-0.28, 0.95, s * 1.25);
+        g.add(gateFrame);
+        const gateFrameR = gateFrame.clone();
+        gateFrameR.position.x = 0.28;
+        g.add(gateFrameR);
 
         const towerPositions = [
           [-s * 1.05, -s * 1.05], [s * 1.05, -s * 1.05],
           [-s * 1.05, s * 1.05], [s * 1.05, s * 1.05],
         ];
         for (const [tx, tz] of towerPositions) {
-          const tower = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.28, s * 0.32, 3.2, 7), pri);
-          tower.position.set(tx, 2.2, tz);
+          const tBase = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.3, s * 0.36, 0.5, 12), stoneDark);
+          tBase.position.set(tx, 0.5, tz);
+          g.add(tBase);
+          const tower = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.28, s * 0.32, 3.2, 12), pri);
+          tower.position.set(tx, 2.1, tz);
           tower.castShadow = true;
           g.add(tower);
-          const towerTop = new THREE.Mesh(new THREE.ConeGeometry(s * 0.35, 1.0, 7), acc);
-          towerTop.position.set(tx, 4.1, tz);
+          const towerRim = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.34, s * 0.3, 0.15, 12), stoneLight);
+          towerRim.position.set(tx, 3.7, tz);
+          g.add(towerRim);
+          const towerTop = new THREE.Mesh(new THREE.ConeGeometry(s * 0.35, 1.1, 12), acc);
+          towerTop.position.set(tx, 4.3, tz);
           towerTop.castShadow = true;
           g.add(towerTop);
-          this.addBattlements(g, stoneLight, tx, 3.85, tz, s * 0.3, 6);
+          const towerFinial = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), acc);
+          towerFinial.position.set(tx, 4.88, tz);
+          g.add(towerFinial);
+          this.addBattlements(g, stoneLight, tx, 3.85, tz, s * 0.32, 8);
+          for (let wi = 0; wi < 3; wi++) {
+            const wAngle = (wi / 3) * Math.PI * 2;
+            const slit = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.15, 0.04), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+            slit.position.set(tx + Math.cos(wAngle) * s * 0.3, 2.0 + wi * 0.6, tz + Math.sin(wAngle) * s * 0.3);
+            slit.lookAt(new THREE.Vector3(tx, slit.position.y, tz));
+            g.add(slit);
+          }
         }
 
-        const keep = new THREE.Mesh(new THREE.BoxGeometry(s * 0.9, 3.5, s * 0.9), pri);
+        const keep = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.42, s * 0.48, 3.5, 8), pri);
         keep.position.y = 2.35;
         keep.castShadow = true;
         g.add(keep);
+        const keepBase = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.5, s * 0.52, 0.3, 8), stoneLight);
+        keepBase.position.y = 0.65;
+        g.add(keepBase);
         for (let wy = 0; wy < 2; wy++) {
           for (let side = 0; side < 4; side++) {
-            const angle = (side / 4) * Math.PI * 2;
-            const win = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.05), new THREE.MeshStandardMaterial({ color: 0xffdd88, emissive: 0xffaa44, emissiveIntensity: 0.6 }));
-            win.position.set(Math.cos(angle) * s * 0.46, 1.8 + wy * 1.2, Math.sin(angle) * s * 0.46);
+            const angle = (side / 4) * Math.PI * 2 + 0.4;
+            const winGlow = new THREE.MeshStandardMaterial({ color: 0xffdd88, emissive: 0xffaa44, emissiveIntensity: 0.7 });
+            const win = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.18, 0.04), winGlow);
+            win.position.set(Math.cos(angle) * s * 0.44, 1.8 + wy * 1.2, Math.sin(angle) * s * 0.44);
             win.lookAt(new THREE.Vector3(0, win.position.y, 0));
             g.add(win);
+            const winFrame = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.22, 0.02), stoneLight);
+            winFrame.position.copy(win.position);
+            winFrame.lookAt(new THREE.Vector3(0, winFrame.position.y, 0));
+            g.add(winFrame);
           }
         }
-        const keepRoof = new THREE.Mesh(new THREE.ConeGeometry(s * 0.65, 1.5, 4), acc);
-        keepRoof.position.y = 4.85;
+        const keepRoof = new THREE.Mesh(new THREE.ConeGeometry(s * 0.58, 1.6, 4), acc);
+        keepRoof.position.y = 4.9;
         keepRoof.rotation.y = Math.PI / 4;
         keepRoof.castShadow = true;
         g.add(keepRoof);
+        const roofEdge = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.48, s * 0.48, 0.08, 8), acc);
+        roofEdge.position.y = 4.1;
+        g.add(roofEdge);
 
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.5, 4), stoneDark);
-        pole.position.y = 6.3;
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 1.8, 6), stoneDark);
+        pole.position.y = 6.5;
         g.add(pole);
-        const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.35), acc);
-        flag.position.set(0.25, 6.8, 0);
-        flag.material.side = THREE.DoubleSide;
+        const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.35), new THREE.MeshStandardMaterial({ color: colors.accent, side: THREE.DoubleSide }));
+        flag.position.set(0.28, 7.1, 0);
         g.add(flag);
 
-        const courtyard = new THREE.Mesh(new THREE.BoxGeometry(s * 1.8, 0.02, s * 1.8), stoneDark);
-        courtyard.position.y = 0.61;
+        const courtyard = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.9, s * 0.9, 0.02, 16), stoneDark);
+        courtyard.position.y = 0.51;
         g.add(courtyard);
         break;
       }
@@ -601,29 +639,51 @@ export class EntityRenderer {
         break;
       }
       case BuildingType.TOWER: {
-        const towerBase = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.25, s * 0.38, 0.6, 8), stoneDark);
-        towerBase.position.y = 0.3;
-        towerBase.castShadow = true;
-        g.add(towerBase);
-        const towerBody = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.28, s * 0.3, 2.8, 8), stoneLight);
-        towerBody.position.y = 2.0;
-        towerBody.castShadow = true;
-        g.add(towerBody);
-        const parapet = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.38, s * 0.32, 0.3, 8), stoneLight);
-        parapet.position.y = 3.55;
+        const tBase = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.3, s * 0.42, 0.5, 12), stoneDark);
+        tBase.position.y = 0.25;
+        tBase.castShadow = true;
+        g.add(tBase);
+        const tBody = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.28, s * 0.32, 2.8, 12), stoneLight);
+        tBody.position.y = 1.9;
+        tBody.castShadow = true;
+        g.add(tBody);
+        const band1 = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.31, s * 0.31, 0.06, 12), stoneDark);
+        band1.position.y = 1.2;
+        g.add(band1);
+        const band2 = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.3, s * 0.3, 0.06, 12), stoneDark);
+        band2.position.y = 2.4;
+        g.add(band2);
+        const parapet = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.38, s * 0.33, 0.25, 12), stoneLight);
+        parapet.position.y = 3.45;
         g.add(parapet);
-        this.addBattlements(g, stoneLight, 0, 3.8, 0, s * 0.35, 8);
-        const roof = new THREE.Mesh(new THREE.ConeGeometry(s * 0.4, 1.2, 8), acc);
-        roof.position.y = 4.3;
+        this.addBattlements(g, stoneLight, 0, 3.7, 0, s * 0.36, 10);
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(s * 0.4, 1.3, 12), acc);
+        roof.position.y = 4.35;
         roof.castShadow = true;
         g.add(roof);
-        for (let i = 0; i < 3; i++) {
-          const slit = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.2, 0.06), new THREE.MeshStandardMaterial({ color: 0x222222 }));
-          const slitAngle = (i / 3) * Math.PI * 2;
-          slit.position.set(Math.cos(slitAngle) * s * 0.3, 2.5, Math.sin(slitAngle) * s * 0.3);
+        const roofFinial = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), acc);
+        roofFinial.position.y = 5.0;
+        g.add(roofFinial);
+        for (let i = 0; i < 4; i++) {
+          const slitAngle = (i / 4) * Math.PI * 2;
+          const slit = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.18, 0.04), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+          slit.position.set(Math.cos(slitAngle) * s * 0.3, 2.0, Math.sin(slitAngle) * s * 0.3);
           slit.lookAt(new THREE.Vector3(0, slit.position.y, 0));
           g.add(slit);
+          const slit2 = slit.clone();
+          slit2.position.y = 2.8;
+          slit2.position.x = Math.cos(slitAngle + 0.4) * s * 0.3;
+          slit2.position.z = Math.sin(slitAngle + 0.4) * s * 0.3;
+          slit2.lookAt(new THREE.Vector3(0, slit2.position.y, 0));
+          g.add(slit2);
         }
+        const doorway = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.06), woodDark);
+        doorway.position.set(0, 0.55, s * 0.33);
+        g.add(doorway);
+        const doorArch = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.06, 8, 1, false, 0, Math.PI), stoneLight);
+        doorArch.position.set(0, 0.82, s * 0.33);
+        doorArch.rotation.x = Math.PI / 2;
+        g.add(doorArch);
         break;
       }
       case BuildingType.AETHER_WELL: {

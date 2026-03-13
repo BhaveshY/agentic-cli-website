@@ -9,6 +9,7 @@ export type UICallback = (event: string, data?: unknown) => void;
 export class GameUI {
   private container: HTMLElement;
   private onEvent: UICallback;
+  private lastFaction: Faction = Faction.SOLARI;
 
   private menuScreen!: HTMLElement;
   private storyScreen!: HTMLElement;
@@ -20,6 +21,7 @@ export class GameUI {
   private notificationArea!: HTMLElement;
   private minimapCanvas!: HTMLCanvasElement;
   private minimapCtx!: CanvasRenderingContext2D;
+  private prevResources: Record<string, number> = {};
 
   constructor(container: HTMLElement, onEvent: UICallback) {
     this.container = container;
@@ -112,7 +114,21 @@ export class GameUI {
     this.minimapCtx = this.minimapCanvas.getContext('2d')!;
     minimapWrap.appendChild(this.minimapCanvas);
 
-    hud.append(this.resourceBar, this.notificationArea, this.selectionPanel, minimapWrap);
+    this.minimapCanvas.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      this.handleMinimapClick(e);
+    });
+    this.minimapCanvas.addEventListener('mousemove', (e) => {
+      if (e.buttons === 1) {
+        e.stopPropagation();
+        this.handleMinimapClick(e);
+      }
+    });
+
+    const shortcuts = this.el('div', 'shortcuts-hint');
+    shortcuts.innerHTML = 'Q/E Rotate  •  WASD Pan  •  Scroll Zoom  •  S Stop  •  Esc Deselect';
+
+    hud.append(this.resourceBar, this.notificationArea, this.selectionPanel, minimapWrap, shortcuts);
     return hud;
   }
 
@@ -149,8 +165,9 @@ export class GameUI {
       if (!btn) return;
 
       if (btn.id === 'btn-start-campaign') {
-        const selected = this.container.querySelector('.faction-btn.selected');
+        const selected = this.menuScreen.querySelector('.faction-btn.selected');
         const faction = (selected?.getAttribute('data-faction') || 'SOLARI') as Faction;
+        this.lastFaction = faction;
         this.showStoryIntro(faction);
         return;
       }
@@ -158,17 +175,13 @@ export class GameUI {
         this.showStoryIntro(Faction.SOLARI, true);
       }
       if (btn.id === 'btn-begin-battle') {
-        const selected = this.container.querySelector('.faction-btn.selected');
-        const faction = (selected?.getAttribute('data-faction') || 'SOLARI') as Faction;
-        this.onEvent('start_game', faction);
+        this.onEvent('start_game', this.lastFaction);
       }
       if (btn.id === 'btn-back-menu') {
         this.showScreen('menu');
       }
       if (btn.id === 'btn-play-again') {
-        const selected = this.container.querySelector('.faction-btn.selected');
-        const faction = (selected?.getAttribute('data-faction') || 'SOLARI') as Faction;
-        this.onEvent('start_game', faction);
+        this.onEvent('start_game', this.lastFaction);
       }
       if (btn.id === 'btn-result-menu') {
         this.showScreen('menu');
@@ -178,6 +191,7 @@ export class GameUI {
       if (btn.classList.contains('faction-btn')) {
         this.container.querySelectorAll('.faction-btn').forEach((b) => b.classList.remove('selected'));
         btn.classList.add('selected');
+        this.lastFaction = (btn.getAttribute('data-faction') || 'SOLARI') as Faction;
       }
 
       if (btn.classList.contains('train-btn')) {
@@ -226,16 +240,42 @@ export class GameUI {
     const player = state.players[0];
     if (!player) return;
 
-    const setVal = (id: string, val: string) => {
+    const setResVal = (id: string, val: number) => {
       const el = document.getElementById(id);
-      if (el) el.textContent = val;
+      if (!el) return;
+      const strVal = Math.floor(val).toString();
+      const prev = this.prevResources[id] ?? val;
+      if (el.textContent !== strVal) {
+        el.textContent = strVal;
+        if (val > prev) {
+          el.classList.remove('flash-down');
+          el.classList.add('flash-up');
+        } else if (val < prev) {
+          el.classList.remove('flash-up');
+          el.classList.add('flash-down');
+        }
+        setTimeout(() => { el.classList.remove('flash-up', 'flash-down'); }, 600);
+      }
+      this.prevResources[id] = val;
     };
 
-    setVal('res-aether', Math.floor(player.resources[ResourceType.AETHER]).toString());
-    setVal('res-timber', Math.floor(player.resources[ResourceType.TIMBER]).toString());
-    setVal('res-stone', Math.floor(player.resources[ResourceType.STONE]).toString());
-    setVal('res-pop', `${player.population}/${player.maxPopulation}`);
-    setVal('res-age', `Age ${player.age}`);
+    setResVal('res-aether', player.resources[ResourceType.AETHER]);
+    setResVal('res-timber', player.resources[ResourceType.TIMBER]);
+    setResVal('res-stone', player.resources[ResourceType.STONE]);
+
+    const popEl = document.getElementById('res-pop');
+    if (popEl) {
+      const popStr = `${player.population}/${player.maxPopulation}`;
+      if (popEl.textContent !== popStr) popEl.textContent = popStr;
+      if (player.population >= player.maxPopulation) {
+        popEl.classList.add('res-pop-full');
+      } else {
+        popEl.classList.remove('res-pop-full');
+      }
+    }
+
+    const ageEl = document.getElementById('res-age');
+    if (ageEl) ageEl.textContent = `Age ${player.age}`;
   }
 
   updateSelection(state: GameState): void {
@@ -379,7 +419,16 @@ export class GameUI {
     }, 5000);
   }
 
-  updateMinimap(state: GameState): void {
+  private handleMinimapClick(e: MouseEvent): void {
+    const rect = this.minimapCanvas.getBoundingClientRect();
+    const scaleX = this.minimapCanvas.width / rect.width;
+    const scaleY = this.minimapCanvas.height / rect.height;
+    const px = (e.clientX - rect.left) * scaleX;
+    const py = (e.clientY - rect.top) * scaleY;
+    this.onEvent('minimap_click', { px, py });
+  }
+
+  updateMinimap(state: GameState, cameraX?: number, cameraZ?: number): void {
     const ctx = this.minimapCtx;
     const w = this.minimapCanvas.width;
     const h = this.minimapCanvas.height;
@@ -400,7 +449,7 @@ export class GameUI {
         }
         if (tile.hasResource === ResourceType.AETHER) ctx.fillStyle = '#7b68ee';
         if (tile.hasResource === ResourceType.STONE) ctx.fillStyle = '#888880';
-        ctx.fillRect(x * scale, z * scale, scale, scale);
+        ctx.fillRect(x * scale, z * scale, Math.ceil(scale), Math.ceil(scale));
       }
     }
 
@@ -414,7 +463,18 @@ export class GameUI {
     for (const unit of state.units.values()) {
       if (unit.state === UnitState.DEAD) continue;
       ctx.fillStyle = unit.owner === 0 ? '#00ddff' : '#ff5555';
-      ctx.fillRect(unit.x * scale - 1, unit.z * scale - 1, 2, 2);
+      ctx.beginPath();
+      ctx.arc(unit.x * scale, unit.z * scale, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (cameraX !== undefined && cameraZ !== undefined) {
+      const vpSize = 8;
+      const cx = (cameraX / (state.mapWidth * 2)) * w;
+      const cz = (cameraZ / (state.mapHeight * 2)) * h;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(cx - vpSize, cz - vpSize, vpSize * 2, vpSize * 2);
     }
   }
 
@@ -434,9 +494,15 @@ export class GameUI {
     }
 
     const rounds = Math.floor(state.tick / 10);
+    const unitCount = [...state.units.values()].filter(u => u.owner === 0 && u.state !== UnitState.DEAD).length;
+    const buildingCount = [...state.buildings.values()].filter(b => b.owner === 0 && b.hp > 0).length;
+    const player = state.players[0];
     stats.innerHTML = `
       <div class="stat-item"><span class="stat-val">${Math.floor(rounds / 60)}:${String(rounds % 60).padStart(2, '0')}</span><span class="stat-label">Duration</span></div>
       <div class="stat-item"><span class="stat-val">${state.players[0].age}</span><span class="stat-label">Final Age</span></div>
+      <div class="stat-item"><span class="stat-val">${unitCount}</span><span class="stat-label">Units</span></div>
+      <div class="stat-item"><span class="stat-val">${buildingCount}</span><span class="stat-label">Buildings</span></div>
+      <div class="stat-item"><span class="stat-val">${Math.floor(player.resources[ResourceType.AETHER])}</span><span class="stat-label">Aether</span></div>
     `;
 
     this.showScreen('result');

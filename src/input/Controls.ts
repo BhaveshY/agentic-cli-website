@@ -20,6 +20,7 @@ export class InputControls {
   private dragStart = { x: 0, y: 0 };
   private mouseX = 0;
   private mouseY = 0;
+  private selectionBox: HTMLDivElement | null = null;
 
   private panSpeed = 0.8;
   private zoomSpeed = 2;
@@ -44,7 +45,37 @@ export class InputControls {
     this.entities = entities;
     this.onEvent = onEvent;
     this.canvas = this.scene.renderer.domElement;
+    this.createSelectionBox();
     this.setupListeners();
+  }
+
+  private createSelectionBox(): void {
+    this.selectionBox = document.createElement('div');
+    this.selectionBox.className = 'selection-box';
+    document.body.appendChild(this.selectionBox);
+  }
+
+  private updateSelectionBoxVisual(e: MouseEvent): void {
+    if (!this.selectionBox || !this.isDragging) return;
+    const dx = Math.abs(e.clientX - this.dragStart.x);
+    const dy = Math.abs(e.clientY - this.dragStart.y);
+    if (dx > 5 || dy > 5) {
+      const left = Math.min(this.dragStart.x, e.clientX);
+      const top = Math.min(this.dragStart.y, e.clientY);
+      const width = Math.abs(e.clientX - this.dragStart.x);
+      const height = Math.abs(e.clientY - this.dragStart.y);
+      this.selectionBox.style.left = left + 'px';
+      this.selectionBox.style.top = top + 'px';
+      this.selectionBox.style.width = width + 'px';
+      this.selectionBox.style.height = height + 'px';
+      this.selectionBox.style.display = 'block';
+    }
+  }
+
+  private hideSelectionBox(): void {
+    if (this.selectionBox) {
+      this.selectionBox.style.display = 'none';
+    }
   }
 
   private setupListeners(): void {
@@ -69,6 +100,11 @@ export class InputControls {
 
     this.keys.clear();
     this.isDragging = false;
+    this.hideSelectionBox();
+    if (this.selectionBox && this.selectionBox.parentElement) {
+      this.selectionBox.parentElement.removeChild(this.selectionBox);
+      this.selectionBox = null;
+    }
     this.world.state.buildPlacementType = null;
     this.entities.hideBuildGhost();
   }
@@ -88,6 +124,10 @@ export class InputControls {
     this.mouseX = e.clientX;
     this.mouseY = e.clientY;
 
+    if (this.isDragging && !this.world.state.buildPlacementType) {
+      this.updateSelectionBoxVisual(e);
+    }
+
     if (this.world.state.buildPlacementType) {
       this.updateBuildGhost(e);
     }
@@ -95,6 +135,8 @@ export class InputControls {
 
   private onMouseUp(e: MouseEvent): void {
     if (e.button !== 0) return;
+
+    this.hideSelectionBox();
 
     const dx = Math.abs(e.clientX - this.dragStart.x);
     const dy = Math.abs(e.clientY - this.dragStart.y);

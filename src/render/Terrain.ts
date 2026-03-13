@@ -11,6 +11,9 @@ export class TerrainRenderer {
   private grassPatches: THREE.InstancedMesh | null = null;
 
   private dustParticles!: THREE.Points;
+  private fireflyParticles: THREE.Points | null = null;
+  private leafParticles: THREE.Points | null = null;
+  private foamMeshes: THREE.Mesh[] = [];
 
   constructor(map: GameMap) {
     this.buildTerrain(map);
@@ -21,6 +24,8 @@ export class TerrainRenderer {
     this.buildGrassDetails(map);
     this.buildResources(map);
     this.buildDustParticles();
+    this.buildFireflies(map);
+    this.buildLeafParticles(map);
   }
 
   private buildTerrain(map: GameMap): void {
@@ -98,17 +103,18 @@ export class TerrainRenderer {
 
   private buildWater(): void {
     const size = MAP_SIZE * TILE_SIZE * 1.8;
-    const geo = new THREE.PlaneGeometry(size, size, 40, 40);
+    const geo = new THREE.PlaneGeometry(size, size, 64, 64);
     geo.rotateX(-Math.PI / 2);
 
     const mat = new THREE.MeshPhysicalMaterial({
-      color: 0x1a6fa0,
+      color: 0x1a7ab0,
       transparent: true,
-      opacity: 0.78,
-      roughness: 0.15,
-      metalness: 0.1,
-      clearcoat: 0.3,
-      clearcoatRoughness: 0.4,
+      opacity: 0.82,
+      roughness: 0.08,
+      metalness: 0.15,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.2,
+      envMapIntensity: 0.6,
     });
 
     this.waterMesh = new THREE.Mesh(geo, mat);
@@ -151,6 +157,7 @@ export class TerrainRenderer {
       const foam = new THREE.Mesh(foamGeo, foamMat);
       foam.position.set(foamPositions[i * 3], foamPositions[i * 3 + 1], foamPositions[i * 3 + 2]);
       this.group.add(foam);
+      this.foamMeshes.push(foam);
     }
   }
 
@@ -437,6 +444,79 @@ export class TerrainRenderer {
     this.group.add(this.dustParticles);
   }
 
+  private buildFireflies(map: GameMap): void {
+    const crystalPositions: number[] = [];
+    for (let x = 0; x < MAP_SIZE; x++) {
+      for (let z = 0; z < MAP_SIZE; z++) {
+        const tile = map.tiles[x][z];
+        if (tile.hasResource === ResourceType.AETHER) {
+          const wx = x * TILE_SIZE + TILE_SIZE / 2;
+          const wz = z * TILE_SIZE + TILE_SIZE / 2;
+          const wy = tile.elevation * 5.5;
+          for (let i = 0; i < 6; i++) {
+            crystalPositions.push(
+              wx + (Math.random() - 0.5) * TILE_SIZE * 2,
+              wy + 0.5 + Math.random() * 2.5,
+              wz + (Math.random() - 0.5) * TILE_SIZE * 2
+            );
+          }
+        }
+      }
+    }
+    if (crystalPositions.length === 0) return;
+
+    const count = crystalPositions.length / 3;
+    const positions = new Float32Array(crystalPositions);
+    const sizes = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      sizes[i] = 0.06 + Math.random() * 0.08;
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    const mat = new THREE.PointsMaterial({
+      color: 0xaa88ff,
+      size: 0.12,
+      transparent: true,
+      opacity: 0.8,
+      sizeAttenuation: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this.fireflyParticles = new THREE.Points(geo, mat);
+    this.group.add(this.fireflyParticles);
+  }
+
+  private buildLeafParticles(map: GameMap): void {
+    const leafPositions: number[] = [];
+    for (let x = 0; x < MAP_SIZE; x++) {
+      for (let z = 0; z < MAP_SIZE; z++) {
+        if (map.tiles[x][z].terrain === TerrainType.FOREST && Math.random() < 0.15) {
+          const tile = map.tiles[x][z];
+          const wx = x * TILE_SIZE + Math.random() * TILE_SIZE;
+          const wz = z * TILE_SIZE + Math.random() * TILE_SIZE;
+          const wy = tile.elevation * 5.5 + 2.5 + Math.random() * 2;
+          leafPositions.push(wx, wy, wz);
+        }
+      }
+    }
+    if (leafPositions.length === 0) return;
+
+    const positions = new Float32Array(leafPositions);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({
+      color: 0x5daa35,
+      size: 0.08,
+      transparent: true,
+      opacity: 0.6,
+      sizeAttenuation: true,
+    });
+    this.leafParticles = new THREE.Points(geo, mat);
+    this.group.add(this.leafParticles);
+  }
+
   update(t: number): void {
     for (const marker of this.resourceMarkers) {
       if (marker.children[0] instanceof THREE.Mesh) {
@@ -454,11 +534,17 @@ export class TerrainRenderer {
       for (let i = 0; i < positions.count; i++) {
         const x = positions.getX(i);
         const z = positions.getZ(i);
-        const y = Math.sin(x * 0.15 + t * 1.2) * 0.08 + Math.cos(z * 0.12 + t * 0.9) * 0.06;
-        positions.setY(i, y);
+        const wave1 = Math.sin(x * 0.15 + t * 1.2) * 0.07;
+        const wave2 = Math.cos(z * 0.12 + t * 0.9) * 0.05;
+        const wave3 = Math.sin((x + z) * 0.08 + t * 0.7) * 0.04;
+        const ripple = Math.sin(x * 0.4 + t * 2.5) * Math.cos(z * 0.35 + t * 1.8) * 0.015;
+        positions.setY(i, wave1 + wave2 + wave3 + ripple);
       }
       positions.needsUpdate = true;
       this.waterMesh.geometry.computeVertexNormals();
+
+      const waterMat = this.waterMesh.material as THREE.MeshPhysicalMaterial;
+      waterMat.opacity = 0.78 + Math.sin(t * 0.5) * 0.04;
     }
 
     if (this.dustParticles) {
@@ -471,6 +557,39 @@ export class TerrainRenderer {
         pos.setX(i, pos.getX(i) + Math.sin(t + i * 0.5) * 0.003);
       }
       pos.needsUpdate = true;
+    }
+
+    if (this.fireflyParticles) {
+      const pos = this.fireflyParticles.geometry.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < pos.count; i++) {
+        const baseX = pos.getX(i);
+        const baseZ = pos.getZ(i);
+        pos.setX(i, baseX + Math.sin(t * 1.5 + i * 2.7) * 0.008);
+        pos.setY(i, pos.getY(i) + Math.sin(t * 2.0 + i * 1.3) * 0.004);
+        pos.setZ(i, baseZ + Math.cos(t * 1.2 + i * 3.1) * 0.008);
+      }
+      pos.needsUpdate = true;
+      const mat = this.fireflyParticles.material as THREE.PointsMaterial;
+      mat.opacity = 0.5 + Math.sin(t * 3) * 0.3;
+    }
+
+    if (this.leafParticles) {
+      const pos = this.leafParticles.geometry.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < pos.count; i++) {
+        let y = pos.getY(i);
+        y -= 0.008;
+        const baseElev = 1.0;
+        if (y < baseElev) y = baseElev + 3.5 + Math.random() * 1.5;
+        pos.setY(i, y);
+        pos.setX(i, pos.getX(i) + Math.sin(t * 0.8 + i * 1.7) * 0.006);
+        pos.setZ(i, pos.getZ(i) + Math.cos(t * 0.6 + i * 2.1) * 0.004);
+      }
+      pos.needsUpdate = true;
+    }
+
+    for (let i = 0; i < this.foamMeshes.length; i++) {
+      const foam = this.foamMeshes[i];
+      (foam.material as THREE.MeshBasicMaterial).opacity = 0.15 + Math.sin(t * 1.5 + i * 0.7) * 0.15;
     }
   }
 }

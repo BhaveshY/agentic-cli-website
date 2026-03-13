@@ -310,8 +310,141 @@ body {
 .stat-val { font-family: var(--font-mono); font-size: 1.8rem; font-weight: 700; color: var(--white); display: block; }
 .stat-label { font-size: 0.65rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.1em; }
 
+/* ===== SELECTION BOX ===== */
+.selection-box {
+  position: fixed;
+  border: 1.5px solid rgba(68, 255, 68, 0.8);
+  background: rgba(68, 255, 68, 0.08);
+  pointer-events: none;
+  z-index: 100;
+  display: none;
+  box-shadow: 0 0 6px rgba(68, 255, 68, 0.3);
+}
+
+/* ===== RESOURCE FLASH ===== */
+.res-val.flash-up {
+  color: #66ff66 !important;
+  text-shadow: 0 0 6px rgba(68, 255, 68, 0.5);
+  transition: color 0.15s, text-shadow 0.15s;
+}
+.res-val.flash-down {
+  color: #ff6666 !important;
+  text-shadow: 0 0 6px rgba(255, 68, 68, 0.5);
+  transition: color 0.15s, text-shadow 0.15s;
+}
+.res-pop-full {
+  color: #ff8844 !important;
+}
+
+/* ===== ENHANCED TOOLTIPS ===== */
+.build-btn[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.4rem 0.7rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 0.68rem;
+  color: var(--dim);
+  white-space: nowrap;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.build-btn { position: relative; }
+
+/* ===== ENHANCED SELECTION PANEL ===== */
+.selection-panel:empty { display: none; }
+.selection-panel {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* ===== NOTIFICATION POLISH ===== */
+.notification {
+  pointer-events: auto;
+}
+.notification:hover {
+  opacity: 0.6 !important;
+}
+
+/* ===== MINIMAP POLISH ===== */
+.minimap-canvas {
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.minimap-canvas:hover {
+  box-shadow: 0 0 8px rgba(100, 180, 255, 0.3);
+}
+
+/* ===== MENU ANIMATIONS ===== */
+.menu-screen .menu-title {
+  animation: titleGlow 3s ease-in-out infinite alternate;
+}
+@keyframes titleGlow {
+  from { text-shadow: 0 2px 20px rgba(212,168,67,0.3); }
+  to { text-shadow: 0 2px 35px rgba(212,168,67,0.6), 0 0 60px rgba(212,168,67,0.15); }
+}
+
+.menu-screen .faction-btn {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.menu-screen .faction-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+/* ===== RESULT SCREEN POLISH ===== */
+.result-title.victory {
+  animation: victoryPulse 2s ease-in-out infinite alternate;
+}
+@keyframes victoryPulse {
+  from { text-shadow: 0 0 20px rgba(212,168,67,0.4); }
+  to { text-shadow: 0 0 40px rgba(212,168,67,0.7), 0 0 80px rgba(212,168,67,0.2); }
+}
+
+.result-title.defeat {
+  animation: defeatFlicker 3s ease-in-out infinite;
+}
+@keyframes defeatFlicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+/* ===== HUD POLISH ===== */
+.resource-bar {
+  backdrop-filter: blur(12px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.selection-panel {
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.3);
+}
+
+/* ===== ENHANCED BUILD GRID ===== */
+.build-grid .build-btn {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.build-grid .build-btn:active {
+  transform: scale(0.95);
+}
+
+/* ===== KEYBOARD SHORTCUTS HINT ===== */
+.hud-container .shortcuts-hint {
+  position: absolute;
+  bottom: 200px;
+  left: 10px;
+  font-size: 0.6rem;
+  color: rgba(136, 153, 170, 0.5);
+  font-family: var(--font-mono);
+  line-height: 1.6;
+  pointer-events: none;
+}
+
 @media (max-width: 768px) {
   .resource-bar { gap: 0.8rem; font-size: 0.7rem; }
   .selection-panel { width: 95vw; }
   .faction-options { flex-direction: column; align-items: center; }
+  .shortcuts-hint { display: none; }
 }

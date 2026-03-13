@@ -1,6 +1,6 @@
 import './style.css';
 import { Faction, GamePhase, BuildingType, UnitState, UnitType } from './types';
-import { BUILDING_DEFS, TILE_SIZE, UNIT_DEFS } from './config';
+import { BUILDING_DEFS, MAP_SIZE, TILE_SIZE, UNIT_DEFS } from './config';
 import { GameWorld } from './core/GameState';
 import { SceneSetup } from './render/SceneSetup';
 import { TerrainRenderer } from './render/Terrain';
@@ -100,6 +100,16 @@ class AetheriaGame implements AgentController {
       case 'building_placed':
         this.audio.playBuild();
         break;
+      case 'minimap_click': {
+        const { px, py } = data as { px: number; py: number };
+        const mapW = this.world?.state.mapWidth ?? MAP_SIZE;
+        const mapH = this.world?.state.mapHeight ?? MAP_SIZE;
+        const worldX = (px / 200) * mapW * TILE_SIZE;
+        const worldZ = (py / 200) * mapH * TILE_SIZE;
+        this.scene.cameraTarget.set(worldX, 0, worldZ);
+        this.scene.updateCameraPosition();
+        break;
+      }
     }
   }
 
@@ -507,9 +517,15 @@ class AetheriaGame implements AgentController {
           this.entities.removeEntity(building.id);
           break;
         }
-        case 'attack':
-          this.audio.playSword();
+        case 'attack': {
+          const atk = data as { attacker: import('./types').Unit };
+          if (atk.attacker.type === UnitType.ARCHER) {
+            this.audio.playArrow();
+          } else {
+            this.audio.playSword();
+          }
           break;
+        }
         case 'notification': {
           const { text, type } = data as { text: string; type: string };
           this.ui.addNotification(text, type);
@@ -550,13 +566,18 @@ class AetheriaGame implements AgentController {
 
     const tiles = this.world?.map.tiles;
     this.entities?.updateUnits(this.world.state.units, this.world.state.selectedIds, t, this.scene.camera, tiles);
-    this.entities?.updateBuildings(this.world.state.buildings, this.world.state.selectedIds, t, tiles);
+    this.entities?.updateBuildings(this.world.state.buildings, this.world.state.selectedIds, t, tiles, this.scene.camera);
+    this.entities?.updateDeathEffects(_dt);
 
     this.uiUpdateCounter++;
     if (this.uiUpdateCounter % 6 === 0) {
       this.ui.updateResources(this.world.state);
       this.ui.updateSelection(this.world.state);
-      this.ui.updateMinimap(this.world.state);
+      this.ui.updateMinimap(
+        this.world.state,
+        this.scene.cameraTarget.x,
+        this.scene.cameraTarget.z
+      );
     }
   }
 

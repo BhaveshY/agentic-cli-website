@@ -9,6 +9,7 @@ export class SceneSetup {
 
   private clock = new THREE.Clock();
   private animCallbacks: Array<(dt: number, t: number) => void> = [];
+  private skyMaterial: THREE.ShaderMaterial | null = null;
 
   cameraTarget = new THREE.Vector3(MAP_SIZE / 2 * TILE_SIZE, 0, MAP_SIZE / 2 * TILE_SIZE);
   cameraDistance = 22;
@@ -69,31 +70,97 @@ export class SceneSetup {
   }
 
   private setupSky(): void {
-    const skyGeo = new THREE.SphereGeometry(100, 32, 16);
+    const skyGeo = new THREE.SphereGeometry(100, 64, 32);
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        topColor: { value: new THREE.Color(0x3b7ec8) },
-        bottomColor: { value: new THREE.Color(0xd4e8f0) },
+        topColor: { value: new THREE.Color(0x1a5cb0) },
+        midColor: { value: new THREE.Color(0x6baed6) },
+        bottomColor: { value: new THREE.Color(0xe8d5b8) },
+        sunDirection: { value: new THREE.Vector3(0.4, 0.6, 0.3).normalize() },
+        sunColor: { value: new THREE.Color(0xffeecc) },
+        time: { value: 0 },
       },
       vertexShader: `
         varying vec3 vWorldPos;
+        varying vec3 vNormal;
         void main() {
           vec4 wp = modelMatrix * vec4(position, 1.0);
           vWorldPos = wp.xyz;
+          vNormal = normalize(wp.xyz);
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
         uniform vec3 topColor;
+        uniform vec3 midColor;
         uniform vec3 bottomColor;
+        uniform vec3 sunDirection;
+        uniform vec3 sunColor;
+        uniform float time;
         varying vec3 vWorldPos;
+        varying vec3 vNormal;
+
+        float hash(vec2 p) {
+          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+        }
+
+        float noise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          float a = hash(i);
+          float b = hash(i + vec2(1.0, 0.0));
+          float c = hash(i + vec2(0.0, 1.0));
+          float d = hash(i + vec2(1.0, 1.0));
+          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+        }
+
+        float fbm(vec2 p) {
+          float val = 0.0;
+          float amp = 0.5;
+          for (int i = 0; i < 4; i++) {
+            val += amp * noise(p);
+            p *= 2.1;
+            amp *= 0.5;
+          }
+          return val;
+        }
+
         void main() {
-          float h = normalize(vWorldPos).y;
-          gl_FragColor = vec4(mix(bottomColor, topColor, max(h, 0.0)), 1.0);
+          vec3 dir = normalize(vWorldPos);
+          float h = dir.y;
+
+          vec3 sky = mix(bottomColor, midColor, smoothstep(-0.05, 0.3, h));
+          sky = mix(sky, topColor, smoothstep(0.3, 0.8, h));
+
+          float sunDot = dot(dir, sunDirection);
+          float sunDisc = smoothstep(0.9975, 0.999, sunDot);
+          float sunGlow = pow(max(sunDot, 0.0), 8.0) * 0.35;
+          float sunHalo = pow(max(sunDot, 0.0), 32.0) * 0.5;
+          sky += sunColor * (sunGlow + sunHalo);
+          sky = mix(sky, sunColor * 1.2, sunDisc);
+
+          float horizonGlow = pow(1.0 - abs(h), 5.0) * 0.15;
+          sky += vec3(1.0, 0.85, 0.6) * horizonGlow;
+
+          vec2 cloudUV = dir.xz / (h + 0.1) * 1.8;
+          float drift = time * 0.008;
+          float clouds = fbm(cloudUV + drift);
+          clouds = smoothstep(0.42, 0.72, clouds);
+          float cloudShadow = fbm(cloudUV * 1.5 + drift * 0.7 + 3.0);
+          cloudShadow = smoothstep(0.4, 0.7, cloudShadow);
+          vec3 cloudColor = mix(vec3(0.95, 0.95, 0.98), sunColor * 0.9, max(sunDot, 0.0) * 0.4);
+          vec3 cloudShade = cloudColor * 0.65;
+          vec3 cloudFinal = mix(cloudShade, cloudColor, 1.0 - cloudShadow * 0.4);
+          float cloudMask = clouds * smoothstep(0.0, 0.15, h) * (1.0 - smoothstep(0.6, 0.9, h));
+          sky = mix(sky, cloudFinal, cloudMask * 0.75);
+
+          gl_FragColor = vec4(sky, 1.0);
         }
       `,
     });
+    this.skyMaterial = skyMat;
     this.scene.add(new THREE.Mesh(skyGeo, skyMat));
   }
 
@@ -114,6 +181,10 @@ export class SceneSetup {
       requestAnimationFrame(loop);
       const dt = Math.min(this.clock.getDelta(), 0.1);
       const t = this.clock.getElapsedTime();
+
+      if (this.skyMaterial) {
+        this.skyMaterial.uniforms.time.value = t;
+      }
 
       for (const cb of this.animCallbacks) cb(dt, t);
 

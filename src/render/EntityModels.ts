@@ -21,6 +21,7 @@ export class EntityRenderer {
   private buildGhostMesh: THREE.Mesh | null = null;
 
   private moveMarkers: THREE.Mesh[] = [];
+  private deathEffects: Array<{ group: THREE.Group; age: number }> = [];
 
   createUnitVisual(unit: Unit, faction: Faction): void {
     const group = new THREE.Group();
@@ -670,6 +671,10 @@ export class EntityRenderer {
         (vis.healthBar.material as THREE.MeshBasicMaterial).color.setHex(
           hpRatio > 0.5 ? 0x44cc44 : hpRatio > 0.25 ? 0xcccc44 : 0xcc4444
         );
+        if (camera) {
+          vis.healthBar.quaternion.copy(camera.quaternion);
+          vis.healthBg.quaternion.copy(camera.quaternion);
+        }
       }
 
       for (const marker of this.moveMarkers) {
@@ -679,7 +684,7 @@ export class EntityRenderer {
     }
   }
 
-  updateBuildings(buildings: Map<number, Building>, selectedIds: Set<number>, t: number, tiles?: { elevation: number }[][]): void {
+  updateBuildings(buildings: Map<number, Building>, selectedIds: Set<number>, t: number, tiles?: { elevation: number }[][], camera?: THREE.Camera): void {
     for (const [id, building] of buildings) {
       if (building.hp <= 0) {
         const vis = this.buildingVisuals.get(id);
@@ -717,6 +722,10 @@ export class EntityRenderer {
         (vis.healthBar.material as THREE.MeshBasicMaterial).color.setHex(
           hpRatio > 0.5 ? 0x44cc44 : hpRatio > 0.25 ? 0xcccc44 : 0xcc4444
         );
+        if (camera) {
+          vis.healthBar.quaternion.copy(camera.quaternion);
+          vis.healthBg.quaternion.copy(camera.quaternion);
+        }
       }
     }
   }
@@ -724,13 +733,64 @@ export class EntityRenderer {
   removeEntity(id: number): void {
     const uVis = this.unitVisuals.get(id);
     if (uVis) {
+      this.spawnDeathEffect(uVis.group.position.clone(), 0.5);
       this.unitGroup.remove(uVis.group);
       this.unitVisuals.delete(id);
     }
     const bVis = this.buildingVisuals.get(id);
     if (bVis) {
+      this.spawnDeathEffect(bVis.group.position.clone(), 1.5);
       this.buildingGroup.remove(bVis.group);
       this.buildingVisuals.delete(id);
+    }
+  }
+
+  private spawnDeathEffect(pos: THREE.Vector3, radius: number): void {
+    const group = new THREE.Group();
+    group.position.copy(pos);
+    const particleCount = 12;
+    for (let i = 0; i < particleCount; i++) {
+      const size = 0.05 + Math.random() * 0.1;
+      const geo = new THREE.SphereGeometry(size, 4, 3);
+      const mat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color().setHSL(0.08 + Math.random() * 0.05, 0.8, 0.5 + Math.random() * 0.3),
+        transparent: true,
+        opacity: 0.9,
+      });
+      const particle = new THREE.Mesh(geo, mat);
+      const angle = (i / particleCount) * Math.PI * 2;
+      const speed = 0.5 + Math.random() * 1.0;
+      particle.position.set(0, 0.3, 0);
+      particle.userData.velocity = new THREE.Vector3(
+        Math.cos(angle) * speed * radius,
+        1.5 + Math.random() * 2,
+        Math.sin(angle) * speed * radius
+      );
+      group.add(particle);
+    }
+    this.unitGroup.add(group);
+    this.deathEffects.push({ group, age: 0 });
+  }
+
+  updateDeathEffects(dt: number): void {
+    for (let i = this.deathEffects.length - 1; i >= 0; i--) {
+      const effect = this.deathEffects[i];
+      effect.age += dt;
+      if (effect.age > 1.2) {
+        this.unitGroup.remove(effect.group);
+        this.deathEffects.splice(i, 1);
+        continue;
+      }
+      for (const child of effect.group.children) {
+        const vel = child.userData.velocity as THREE.Vector3;
+        if (!vel) continue;
+        child.position.x += vel.x * dt;
+        child.position.y += vel.y * dt;
+        child.position.z += vel.z * dt;
+        vel.y -= 6 * dt;
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = Math.max(0, 1 - effect.age / 1.2);
+      }
     }
   }
 
@@ -745,27 +805,55 @@ export class EntityRenderer {
 
     const def = BUILDING_DEFS[type];
     const s = def.size * TILE_SIZE;
-    const geo = new THREE.BoxGeometry(s * 0.9, 0.3, s * 0.9);
-    const mat = new THREE.MeshBasicMaterial({
-      color: valid ? 0x00ff00 : 0xff0000,
-      transparent: true,
-      opacity: 0.4,
-    });
-    this.buildGhostMesh = new THREE.Mesh(geo, mat);
+    const color = valid ? 0x00ff00 : 0xff0000;
+
+    const ghostGroup = new THREE.Group();
+
+    const baseGeo = new THREE.BoxGeometry(s * 0.92, 0.08, s * 0.92);
+    const baseMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35 });
+    const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+    baseMesh.position.y = 0.04;
+    ghostGroup.add(baseMesh);
+
+    const h = this.getBuildingHeight(type) * 0.6;
+    const outlineGeo = new THREE.BoxGeometry(s * 0.85, h, s * 0.85);
+    const edges = new THREE.EdgesGeometry(outlineGeo);
+    const lineMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.6 });
+    const wireframe = new THREE.LineSegments(edges, lineMat);
+    wireframe.position.y = h / 2;
+    ghostGroup.add(wireframe);
+
+    const fillMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.12, side: THREE.DoubleSide });
+    const fillMesh = new THREE.Mesh(outlineGeo, fillMat);
+    fillMesh.position.y = h / 2;
+    ghostGroup.add(fillMesh);
+
     const groundY = tiles
       ? this.getTerrainHeight(tileX + def.size / 2, tileZ + def.size / 2, tiles)
       : 0;
-    this.buildGhostMesh.position.set(
+    ghostGroup.position.set(
       (tileX + def.size / 2) * TILE_SIZE,
-      groundY + 0.2,
+      groundY + 0.1,
       (tileZ + def.size / 2) * TILE_SIZE
     );
-    this.buildingGroup.add(this.buildGhostMesh);
+
+    const ghostMesh = new THREE.Mesh(new THREE.BoxGeometry(0, 0, 0), new THREE.MeshBasicMaterial());
+    ghostMesh.visible = false;
+    ghostGroup.add(ghostMesh);
+
+    this.buildGhostMesh = ghostMesh;
+    this.buildGhostMesh.userData.ghostGroup = ghostGroup;
+    this.buildingGroup.add(ghostGroup);
   }
 
   hideBuildGhost(): void {
     if (this.buildGhostMesh) {
-      this.buildingGroup.remove(this.buildGhostMesh);
+      const ghostGroup = this.buildGhostMesh.userData.ghostGroup as THREE.Group | undefined;
+      if (ghostGroup) {
+        this.buildingGroup.remove(ghostGroup);
+      } else {
+        this.buildingGroup.remove(this.buildGhostMesh);
+      }
       this.buildGhostMesh = null;
     }
   }

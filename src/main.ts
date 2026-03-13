@@ -1,4 +1,5 @@
 import './style.css';
+import * as THREE from 'three';
 import { Faction, GamePhase, BuildingType, UnitState, UnitType } from './types';
 import { BUILDING_DEFS, MAP_SIZE, TILE_SIZE, UNIT_DEFS } from './config';
 import { GameWorld } from './core/GameState';
@@ -94,8 +95,10 @@ class AetheriaGame implements AgentController {
         break;
       case 'command_move':
       case 'command_attack':
-      case 'command_gather':
         this.audio.playClick();
+        break;
+      case 'command_gather':
+        this.audio.playGather();
         break;
       case 'building_placed':
         this.audio.playBuild();
@@ -247,6 +250,7 @@ class AetheriaGame implements AgentController {
       this.scene.onAnimate(this.gameLoopBound);
     }
     this.ui.showScreen('hud');
+    this.audio.startAmbience();
 
     const citadel = [...this.world.state.buildings.values()].find(
       (b) => b.owner === 0 && b.type === BuildingType.CITADEL
@@ -518,9 +522,18 @@ class AetheriaGame implements AgentController {
           break;
         }
         case 'attack': {
-          const atk = data as { attacker: import('./types').Unit };
+          const atk = data as { attacker: import('./types').Unit; target: { x?: number; z?: number; tileX?: number; tileZ?: number } };
           if (atk.attacker.type === UnitType.ARCHER) {
             this.audio.playArrow();
+            if (this.entities && atk.target) {
+              const fromPos = new THREE.Vector3(
+                atk.attacker.x * TILE_SIZE, 0, atk.attacker.z * TILE_SIZE
+              );
+              const tx = (atk.target.x ?? ((atk.target.tileX ?? 0) + 0.5)) * TILE_SIZE;
+              const tz = (atk.target.z ?? ((atk.target.tileZ ?? 0) + 0.5)) * TILE_SIZE;
+              const toPos = new THREE.Vector3(tx, 0, tz);
+              this.entities.spawnProjectile(fromPos, toPos);
+            }
           } else {
             this.audio.playSword();
           }
@@ -568,6 +581,7 @@ class AetheriaGame implements AgentController {
     this.entities?.updateUnits(this.world.state.units, this.world.state.selectedIds, t, this.scene.camera, tiles);
     this.entities?.updateBuildings(this.world.state.buildings, this.world.state.selectedIds, t, tiles, this.scene.camera);
     this.entities?.updateDeathEffects(_dt);
+    this.entities?.updateProjectiles(_dt);
 
     this.uiUpdateCounter++;
     if (this.uiUpdateCounter % 6 === 0) {

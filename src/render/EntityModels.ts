@@ -22,6 +22,8 @@ export class EntityRenderer {
 
   private moveMarkers: THREE.Mesh[] = [];
   private deathEffects: Array<{ group: THREE.Group; age: number }> = [];
+  private projectiles: Array<{ mesh: THREE.Mesh; target: THREE.Vector3; speed: number; age: number }> = [];
+  private unitTargetRotation = new Map<number, number>();
 
   createUnitVisual(unit: Unit, faction: Faction): void {
     const group = new THREE.Group();
@@ -642,21 +644,31 @@ export class EntityRenderer {
         vis.group.position.y = groundY + Math.sin(t * 2 + id) * 0.015;
       }
 
+      let targetAngle: number | null = null;
       if (unit.path.length > 0 && unit.pathIndex < unit.path.length) {
         const target = unit.path[unit.pathIndex];
-        const angle = Math.atan2(
+        targetAngle = Math.atan2(
           (target.x * TILE_SIZE) - vis.group.position.x,
           (target.z * TILE_SIZE) - vis.group.position.z
         );
-        vis.group.rotation.y = angle;
       } else if (unit.attackTargetId) {
         const target = units.get(unit.attackTargetId);
         if (target) {
-          vis.group.rotation.y = Math.atan2(
+          targetAngle = Math.atan2(
             target.x * TILE_SIZE - vis.group.position.x,
             target.z * TILE_SIZE - vis.group.position.z
           );
         }
+      }
+      if (targetAngle !== null) {
+        this.unitTargetRotation.set(id, targetAngle);
+      }
+      const desiredAngle = this.unitTargetRotation.get(id);
+      if (desiredAngle !== undefined) {
+        let diff = desiredAngle - vis.group.rotation.y;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        vis.group.rotation.y += diff * Math.min(1, 12 * 0.016);
       }
 
       const selected = selectedIds.has(id);
@@ -709,8 +721,18 @@ export class EntityRenderer {
 
       if (!building.isComplete) {
         const progress = building.buildProgress / 100;
-        vis.group.children[0].scale.y = Math.max(0.1, progress);
-        vis.group.children[0].position.y *= progress;
+        const eased = progress * progress * (3 - 2 * progress);
+        for (const child of vis.group.children) {
+          if (child === vis.healthBar || child === vis.healthBg || child === vis.selectionRing) continue;
+          child.scale.y = Math.max(0.05, eased);
+          if (child instanceof THREE.Mesh) {
+            const mat = child.material;
+            if (mat instanceof THREE.MeshStandardMaterial) {
+              mat.opacity = 0.4 + eased * 0.6;
+              mat.transparent = progress < 1;
+            }
+          }
+        }
       }
 
       const hpRatio = building.hp / building.maxHp;
@@ -770,6 +792,35 @@ export class EntityRenderer {
     }
     this.unitGroup.add(group);
     this.deathEffects.push({ group, age: 0 });
+  }
+
+  spawnProjectile(from: THREE.Vector3, to: THREE.Vector3): void {
+    const geo = new THREE.CylinderGeometry(0.02, 0.02, 0.4, 4);
+    geo.rotateX(Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xddcc88 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(from);
+    mesh.position.y += 1.5;
+    mesh.lookAt(to.clone().setY(to.y + 0.8));
+    this.unitGroup.add(mesh);
+    this.projectiles.push({ mesh, target: to.clone().setY(to.y + 0.8), speed: 25, age: 0 });
+  }
+
+  updateProjectiles(dt: number): void {
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const proj = this.projectiles[i];
+      proj.age += dt;
+      const dir = proj.target.clone().sub(proj.mesh.position);
+      const dist = dir.length();
+      if (dist < 0.3 || proj.age > 2) {
+        this.unitGroup.remove(proj.mesh);
+        this.projectiles.splice(i, 1);
+        continue;
+      }
+      dir.normalize().multiplyScalar(proj.speed * dt);
+      proj.mesh.position.add(dir);
+      proj.mesh.lookAt(proj.target);
+    }
   }
 
   updateDeathEffects(dt: number): void {

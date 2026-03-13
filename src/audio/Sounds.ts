@@ -1,6 +1,7 @@
 export class GameAudio {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private ambienceActive = false;
 
   private ensure(): AudioContext {
     if (!this.ctx) {
@@ -52,5 +53,48 @@ export class GameAudio {
     this.tone(440, 'sine', 0.2, 0.3);
     this.tone(660, 'sine', 0.2, 0.3, undefined, 0.2);
     this.tone(880, 'sine', 0.4, 0.3, undefined, 0.4);
+  }
+
+  startAmbience(): void {
+    if (this.ambienceActive) return;
+    this.ambienceActive = true;
+    const ctx = this.ensure();
+    if (!this.master) return;
+
+    const bufferSize = 2 * ctx.sampleRate;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    noise.loop = true;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 200;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0.03;
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.master);
+    noise.start();
+
+    const windLfo = ctx.createOscillator();
+    windLfo.type = 'sine';
+    windLfo.frequency.value = 0.15;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 80;
+    windLfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+    windLfo.start();
+  }
+
+  playGather(): void {
+    this.tone(300, 'square', 0.08, 0.12);
+    this.tone(250, 'square', 0.06, 0.1, undefined, 0.08);
   }
 }

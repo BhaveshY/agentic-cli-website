@@ -19,7 +19,6 @@ export class AIPlayer {
   private hasTaunted = false;
   private lastTauntTick = 0;
   private lastDecisionTick = 0;
-  private lastDebugSummaryTick = 0;
 
   constructor(world: GameWorld, playerId: number) {
     this.world = world;
@@ -42,13 +41,6 @@ export class AIPlayer {
     const buildings = this.world.getPlayerBuildings(this.playerId);
     const workers = units.filter((u) => u.type === UnitType.WORKER);
     const military = units.filter((u) => u.type !== UnitType.WORKER);
-
-    if (tick - this.lastDebugSummaryTick >= TICK_RATE * 30) {
-      this.lastDebugSummaryTick = tick;
-      // #region agent log
-      void fetch('http://127.0.0.1:4310/log', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ hypothesisId: 'B', location: 'AIPlayer.ts:49', message: 'AI decision summary', data: { tick, lastAttackTick: this.lastAttackTick, attackWaveSize: this.attackWaveSize, workers: workers.length, military: military.length, idleMilitary: military.filter((u) => u.state === UnitState.IDLE).length, buildings: buildings.map((b) => `${b.type}:${b.isComplete ? 'done' : 'build'}`), visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'node' }, timestamp: Date.now() }) }).catch(() => {});
-      // #endregion
-    }
 
     this.manageWorkers(workers);
     this.manageBuildings(buildings, workers, player.age);
@@ -179,17 +171,11 @@ export class AIPlayer {
       }
 
       if (targetBuildingId !== null) {
-        // #region agent log
-        void fetch('http://127.0.0.1:4310/log', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ hypothesisId: 'C', location: 'AIPlayer.ts:180', message: 'AI launched building attack wave', data: { tick, idleMilitary: idleMilitary.length, targetBuildingId, targetPosition }, timestamp: Date.now() }) }).catch(() => {});
-        // #endregion
         this.world.commandAttack(
           idleMilitary.map((u) => u.id),
           targetBuildingId
         );
       } else if (targetPosition) {
-        // #region agent log
-        void fetch('http://127.0.0.1:4310/log', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ hypothesisId: 'C', location: 'AIPlayer.ts:186', message: 'AI launched unit chase wave', data: { tick, idleMilitary: idleMilitary.length, targetPosition, targetUnitId: enemyUnits[0]?.id ?? null }, timestamp: Date.now() }) }).catch(() => {});
-        // #endregion
         const ids = idleMilitary.map((u) => u.id);
         this.world.commandMove(ids, targetPosition.x, targetPosition.z);
 

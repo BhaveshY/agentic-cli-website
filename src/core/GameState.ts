@@ -273,11 +273,6 @@ export class GameWorld {
       unit.state = UnitState.ATTACKING;
       unit.attackTargetId = targetId;
     }
-    const targetUnit = this.state.units.get(targetId);
-    const targetBuilding = this.state.buildings.get(targetId);
-    // #region agent log
-    void fetch('http://127.0.0.1:4310/log', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ hypothesisId: 'C', location: 'GameState.ts:276', message: 'Attack command issued', data: { tick: this.state.tick, unitIds, owner: owner ?? null, targetId, targetKind: targetUnit ? 'unit' : targetBuilding ? 'building' : 'missing', targetOwner: targetUnit?.owner ?? targetBuilding?.owner ?? null }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
   }
 
   commandGather(unitIds: number[], tileX: number, tileZ: number, owner?: number): void {
@@ -410,13 +405,6 @@ export class GameWorld {
   private tick(): void {
     if (this.state.phase !== GamePhase.PLAYING) return;
     this.state.tick++;
-
-    if (this.state.tick % (TICK_RATE * 30) === 0) {
-      // #region agent log
-      void fetch('http://127.0.0.1:4310/log', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ hypothesisId: 'A', location: 'GameState.ts:397', message: 'World tick heartbeat', data: { tick: this.state.tick, player0Resources: this.state.players[0] ? { aether: Math.floor(this.state.players[0].resources[ResourceType.AETHER]), timber: Math.floor(this.state.players[0].resources[ResourceType.TIMBER]), stone: Math.floor(this.state.players[0].resources[ResourceType.STONE]) } : null, player1Resources: this.state.players[1] ? { aether: Math.floor(this.state.players[1].resources[ResourceType.AETHER]), timber: Math.floor(this.state.players[1].resources[ResourceType.TIMBER]), stone: Math.floor(this.state.players[1].resources[ResourceType.STONE]) } : null, player1Units: this.getPlayerUnits(1).map((u) => `${u.type}:${u.state}`), player1Buildings: this.getPlayerBuildings(1).map((b) => `${b.type}:${b.isComplete ? 'done' : 'build'}`) }, timestamp: Date.now() }) }).catch(() => {});
-      // #endregion
-    }
-
     this.updateUnits();
     this.updateBuildings();
     this.updateCombat();

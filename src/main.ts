@@ -21,7 +21,6 @@ class AetheriaGame {
   private audio: GameAudio;
   private uiUpdateCounter = 0;
   private gameLoopBound: ((dt: number, t: number) => void) | null = null;
-  private lastDebugRenderLogAt = 0;
   private lastSimulationTime = 0;
 
   constructor() {
@@ -37,11 +36,6 @@ class AetheriaGame {
       if (e.key === 'Enter' && !this.world) {
         this.startGame(Faction.SOLARI);
       }
-    });
-    document.addEventListener('visibilitychange', () => {
-      // #region agent log
-      void fetch('http://127.0.0.1:4310/log', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ hypothesisId: 'A', location: 'main.ts:39', message: 'Document visibility changed', data: { visibilityState: document.visibilityState, hasWorld: Boolean(this.world), tick: this.world?.state.tick ?? null, phase: this.world?.state.phase ?? null }, timestamp: Date.now() }) }).catch(() => {});
-      // #endregion
     });
 
     this.scene.start();
@@ -217,13 +211,6 @@ class AetheriaGame {
       : 0;
     this.lastSimulationTime = t;
     this.world.advance(elapsedSeconds);
-
-    if (Date.now() - this.lastDebugRenderLogAt >= 30000) {
-      this.lastDebugRenderLogAt = Date.now();
-      // #region agent log
-      void fetch('http://127.0.0.1:4310/log', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ hypothesisId: 'A', location: 'main.ts:208', message: 'Render loop heartbeat', data: { tick: this.world.state.tick, phase: this.world.state.phase, visibilityState: document.visibilityState, uiUpdateCounter: this.uiUpdateCounter, animTime: Math.round(t) }, timestamp: Date.now() }) }).catch(() => {});
-      // #endregion
-    }
 
     this.controls?.update();
     this.terrain?.update(t);

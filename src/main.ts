@@ -9,8 +9,11 @@ import { InputControls } from './input/Controls';
 import { GameUI } from './ui/GameUI';
 import { AIPlayer } from './ai/AIPlayer';
 import { GameAudio } from './audio/Sounds';
-import { installAgentBridge, type AgentController, type AgentSnapshot } from './agent/AgentBridge';
-import { readAgentModeConfig, type AgentModeConfig } from './agent/AgentMode';
+import { installAgentBridge } from './agent/AgentBridge';
+import { readAgentModeConfig } from './agent/AgentMode';
+import { AgentSessionClient } from './agent/AgentSessionClient';
+import type { AgentModeConfig, AgentSnapshot } from './agent/AgentProtocol';
+import type { AgentController } from './agent/AgentRuntime';
 
 class AetheriaGame implements AgentController {
   private world!: GameWorld;
@@ -25,6 +28,7 @@ class AetheriaGame implements AgentController {
   private gameLoopBound: ((dt: number, t: number) => void) | null = null;
   private lastSimulationTime = 0;
   private agentConfig: AgentModeConfig;
+  private sessionClient: AgentSessionClient | null = null;
 
   constructor() {
     const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -51,6 +55,11 @@ class AetheriaGame implements AgentController {
 
     if (this.agentConfig.enabled && this.agentConfig.autostart) {
       this.startGame(this.agentConfig.faction);
+    }
+
+    if (this.agentConfig.enabled && this.agentConfig.sessionId) {
+      this.sessionClient = new AgentSessionClient(this.agentConfig.sessionId, this);
+      this.sessionClient.start();
     }
   }
 
@@ -98,7 +107,7 @@ class AetheriaGame implements AgentController {
     return this.agentConfig;
   }
 
-  getSnapshot(options?: { includeTiles?: boolean }): AgentSnapshot {
+  getSnapshot(): AgentSnapshot {
     const state = this.world?.state;
     const players = state?.players ?? [];
 
@@ -175,19 +184,6 @@ class AetheriaGame implements AgentController {
             time: notification.time,
           }))
         : [],
-      tiles: options?.includeTiles && this.world
-        ? this.world.map.tiles.flatMap((column) =>
-            column.map((tile) => ({
-              x: tile.x,
-              z: tile.z,
-              terrain: tile.terrain,
-              passable: tile.passable,
-              hasResource: tile.hasResource,
-              resourceAmount: tile.resourceAmount,
-              buildingId: tile.buildingId,
-            }))
-          )
-        : undefined,
     };
   }
 

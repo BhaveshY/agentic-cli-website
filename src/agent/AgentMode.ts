@@ -1,10 +1,5 @@
 import { Faction } from '../types';
-
-export interface AgentModeConfig {
-  enabled: boolean;
-  autostart: boolean;
-  faction: Faction;
-}
+import type { AgentModeConfig } from './AgentProtocol';
 
 function readBooleanParam(value: string | null): boolean {
   if (!value) return false;
@@ -22,5 +17,6 @@ export function readAgentModeConfig(search: string = window.location.search): Ag
     enabled: readBooleanParam(params.get('agent')),
     autostart: readBooleanParam(params.get('autostart')),
     faction: readFactionParam(params.get('faction')),
+    sessionId: params.get('session'),
   };
 }

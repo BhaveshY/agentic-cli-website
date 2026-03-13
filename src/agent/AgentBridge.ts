@@ -1,91 +1,6 @@
-import { BuildingType, Faction, GamePhase, ResourceType, UnitState, UnitType } from '../types';
-import type { AgentModeConfig } from './AgentMode';
-
-export interface AgentTileSnapshot {
-  x: number;
-  z: number;
-  terrain: string;
-  passable: boolean;
-  hasResource: ResourceType | null;
-  resourceAmount: number;
-  buildingId: number | null;
-}
-
-export interface AgentUnitSnapshot {
-  id: number;
-  type: UnitType;
-  owner: number;
-  x: number;
-  z: number;
-  hp: number;
-  maxHp: number;
-  state: UnitState;
-  targetX: number;
-  targetZ: number;
-  attackTargetId: number | null;
-  carryType: ResourceType | null;
-  carryAmount: number;
-  gatherTargetX: number;
-  gatherTargetZ: number;
-  buildTargetId: number | null;
-}
-
-export interface AgentBuildingSnapshot {
-  id: number;
-  type: BuildingType;
-  owner: number;
-  tileX: number;
-  tileZ: number;
-  hp: number;
-  maxHp: number;
-  buildProgress: number;
-  isComplete: boolean;
-  productionQueue: UnitType[];
-  productionProgress: number;
-  rallyX: number;
-  rallyZ: number;
-}
-
-export interface AgentPlayerSnapshot {
-  id: number;
-  faction: Faction;
-  resources: Record<ResourceType, number>;
-  population: number;
-  maxPopulation: number;
-  age: number;
-  isAI: boolean;
-  defeated: boolean;
-}
-
-export interface AgentSnapshot {
-  phase: GamePhase;
-  tick: number;
-  selectedIds: number[];
-  buildPlacementType: BuildingType | null;
-  player: AgentPlayerSnapshot | null;
-  opponent: AgentPlayerSnapshot | null;
-  units: AgentUnitSnapshot[];
-  buildings: AgentBuildingSnapshot[];
-  notifications: Array<{ text: string; type: string; time: number }>;
-  tiles?: AgentTileSnapshot[];
-}
-
-export interface AgentController {
-  getAgentConfig(): AgentModeConfig;
-  getSnapshot(options?: { includeTiles?: boolean }): AgentSnapshot;
-  startGame(faction: Faction): void;
-  returnToMenu(): void;
-  setSelection(ids: number[]): number[];
-  startBuildPlacement(buildingType: BuildingType): boolean;
-  findBuildLocation(buildingType: BuildingType, owner?: number): { tileX: number; tileZ: number } | null;
-  placeBuilding(buildingType: BuildingType, tileX?: number, tileZ?: number): boolean;
-  trainUnit(unitType: UnitType, buildingId?: number): boolean;
-  advanceAge(playerId?: number): boolean;
-  moveUnits(x: number, z: number, unitIds?: number[]): boolean;
-  gatherUnits(tileX: number, tileZ: number, unitIds?: number[]): boolean;
-  attackUnits(targetId: number, unitIds?: number[]): boolean;
-  stopUnits(unitIds?: number[]): number[];
-}
+import { BuildingType, Faction, UnitType } from '../types';
+import type { AgentModeConfig, AgentSnapshot } from './AgentProtocol';
+import type { AgentController } from './AgentRuntime';
 
 function buildJoinUrl(config: AgentModeConfig): string {
   const params = new URLSearchParams();
@@ -93,6 +8,9 @@ function buildJoinUrl(config: AgentModeConfig): string {
   params.set('faction', config.faction);
   if (config.autostart) {
     params.set('autostart', '1');
+  }
+  if (config.sessionId) {
+    params.set('session', config.sessionId);
   }
   return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
 }
@@ -117,7 +35,7 @@ export function installAgentBridge(controller: AgentController): void {
           faction: 'Choose SOLARI or IRONROOT as the player faction.',
         },
         actions: [
-          'getSnapshot({ includeTiles?: boolean })',
+          'getSnapshot()',
           'startGame(faction)',
           'returnToMenu()',
           'setSelection(ids)',
@@ -133,12 +51,12 @@ export function installAgentBridge(controller: AgentController): void {
         ],
         notes: [
           'This bridge controls the local player slot in the existing single-player match.',
-          'No multiplayer join server exists in this repository; the URL enables agent mode on the local game client.',
+          'For CLI-driven automation, prefer the local session server and queue commands there instead of polling this object directly.',
         ],
       };
     },
-    getSnapshot(options?: { includeTiles?: boolean }): AgentSnapshot {
-      return controller.getSnapshot(options);
+    getSnapshot(): AgentSnapshot {
+      return controller.getSnapshot();
     },
     startGame(faction?: Faction): void {
       controller.startGame(faction ?? getMode().faction);
@@ -185,7 +103,7 @@ declare global {
       version: string;
       mode: AgentModeConfig;
       getHelp(): Record<string, unknown>;
-      getSnapshot(options?: { includeTiles?: boolean }): AgentSnapshot;
+      getSnapshot(): AgentSnapshot;
       startGame(faction?: Faction): void;
       returnToMenu(): void;
       setSelection(ids: number[]): number[];

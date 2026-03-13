@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "server": "tsx server/index.ts",
+    "agent:cli": "tsx scripts/agent-cli.ts",
     "start": "concurrently \"npm run dev\" \"npm run server\"",
     "lint": "eslint src/ --ext .ts,.tsx",
     "typecheck": "tsc --noEmit"

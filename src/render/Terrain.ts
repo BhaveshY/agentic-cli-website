@@ -15,6 +15,7 @@ export class TerrainRenderer {
   constructor(map: GameMap) {
     this.buildTerrain(map);
     this.buildWater();
+    this.buildShoreFoam(map);
     this.buildTrees(map);
     this.buildScatteredRocks(map);
     this.buildGrassDetails(map);
@@ -114,6 +115,43 @@ export class TerrainRenderer {
     this.waterMesh.position.set(MAP_SIZE * TILE_SIZE / 2, -0.05, MAP_SIZE * TILE_SIZE / 2);
     this.waterMesh.receiveShadow = true;
     this.group.add(this.waterMesh);
+  }
+
+  private buildShoreFoam(map: GameMap): void {
+    const foamPositions: number[] = [];
+    for (let x = 1; x < MAP_SIZE - 1; x++) {
+      for (let z = 1; z < MAP_SIZE - 1; z++) {
+        const tile = map.tiles[x][z];
+        if (tile.terrain === TerrainType.WATER) continue;
+        const neighbors = [
+          map.tiles[x - 1]?.[z], map.tiles[x + 1]?.[z],
+          map.tiles[x]?.[z - 1], map.tiles[x]?.[z + 1],
+        ];
+        const nearWater = neighbors.some((n) => n && n.terrain === TerrainType.WATER);
+        if (nearWater) {
+          const wx = x * TILE_SIZE + TILE_SIZE / 2;
+          const wz = z * TILE_SIZE + TILE_SIZE / 2;
+          foamPositions.push(wx, 0.08, wz);
+        }
+      }
+    }
+    if (foamPositions.length === 0) return;
+
+    const count = foamPositions.length / 3;
+    const foamGeo = new THREE.PlaneGeometry(TILE_SIZE * 0.9, TILE_SIZE * 0.9);
+    foamGeo.rotateX(-Math.PI / 2);
+    const foamMat = new THREE.MeshBasicMaterial({
+      color: 0xddeeff,
+      transparent: true,
+      opacity: 0.3,
+      side: THREE.DoubleSide,
+    });
+
+    for (let i = 0; i < count; i++) {
+      const foam = new THREE.Mesh(foamGeo, foamMat);
+      foam.position.set(foamPositions[i * 3], foamPositions[i * 3 + 1], foamPositions[i * 3 + 2]);
+      this.group.add(foam);
+    }
   }
 
   private buildTrees(map: GameMap): void {

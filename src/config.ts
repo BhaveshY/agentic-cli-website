@@ -216,7 +216,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
 };
 
 export const FACTION_COLORS: Record<Faction, { primary: number; secondary: number; accent: number }> = {
-  [Faction.SOLARI]: { primary: 0xf0a030, secondary: 0xd4841e, accent: 0xffd700 },
+  [Faction.SOLARI]: { primary: 0xc8882a, secondary: 0xa06828, accent: 0xe8b830 },
   [Faction.IRONROOT]: { primary: 0x2d8a4e, secondary: 0x1a5c33, accent: 0x7ec850 },
 };
 

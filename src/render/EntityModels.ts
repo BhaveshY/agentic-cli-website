@@ -26,12 +26,12 @@ export class EntityRenderer {
     const group = new THREE.Group();
     const colors = FACTION_COLORS[faction];
     const mesh = this.buildUnitMesh(unit.type, colors);
-    mesh.scale.set(2.0, 2.0, 2.0);
+    mesh.scale.set(2.4, 2.4, 2.4);
     group.add(mesh);
 
-    const { healthBar, healthBg } = this.createHealthBar(1.2);
-    healthBg.position.y = 2.8;
-    healthBar.position.y = 2.8;
+    const { healthBar, healthBg } = this.createHealthBar(1.4);
+    healthBg.position.y = 3.2;
+    healthBar.position.y = 3.2;
     group.add(healthBg);
     group.add(healthBar);
 
@@ -82,22 +82,34 @@ export class EntityRenderer {
   }
 
   private addLegs(g: THREE.Group, mat: THREE.Material, y: number): void {
-    const legGeo = new THREE.BoxGeometry(0.1, 0.35, 0.12);
+    const legGeo = new THREE.BoxGeometry(0.12, 0.38, 0.14);
     const leftLeg = new THREE.Mesh(legGeo, mat);
     leftLeg.position.set(-0.1, y, 0);
+    leftLeg.castShadow = true;
     g.add(leftLeg);
     const rightLeg = new THREE.Mesh(legGeo, mat);
     rightLeg.position.set(0.1, y, 0);
+    rightLeg.castShadow = true;
     g.add(rightLeg);
+    const bootMat = (mat as THREE.MeshStandardMaterial).clone();
+    bootMat.color.multiplyScalar(0.7);
+    const leftBoot = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.18), bootMat);
+    leftBoot.position.set(-0.1, y - 0.15, 0.02);
+    g.add(leftBoot);
+    const rightBoot = leftBoot.clone();
+    rightBoot.position.set(0.1, y - 0.15, 0.02);
+    g.add(rightBoot);
   }
 
   private addArms(g: THREE.Group, mat: THREE.Material, y: number, w: number): void {
-    const armGeo = new THREE.BoxGeometry(0.08, 0.3, 0.1);
+    const armGeo = new THREE.BoxGeometry(0.1, 0.32, 0.12);
     const leftArm = new THREE.Mesh(armGeo, mat);
     leftArm.position.set(-w, y, 0);
+    leftArm.castShadow = true;
     g.add(leftArm);
     const rightArm = new THREE.Mesh(armGeo, mat);
     rightArm.position.set(w, y, 0);
+    rightArm.castShadow = true;
     g.add(rightArm);
   }
 
@@ -117,8 +129,9 @@ export class EntityRenderer {
         body.castShadow = true;
         g.add(body);
         this.addArms(g, skin, 0.5, 0.24);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 5), skin);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), skin);
         head.position.y = 0.88;
+        head.castShadow = true;
         g.add(head);
         const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.08, 6), sec);
         hat.position.y = 1.0;
@@ -142,8 +155,9 @@ export class EntityRenderer {
         armor.position.y = 0.68;
         g.add(armor);
         this.addArms(g, pri, 0.55, 0.26);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 5), skin);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), skin);
         head.position.y = 0.93;
+        head.castShadow = true;
         g.add(head);
         const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.15, 5, 4, 0, Math.PI * 2, 0, Math.PI / 2), acc);
         helmet.position.y = 0.93;
@@ -170,8 +184,9 @@ export class EntityRenderer {
         body.castShadow = true;
         g.add(body);
         this.addArms(g, pri, 0.5, 0.22);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 5), skin);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), skin);
         head.position.y = 0.88;
+        head.castShadow = true;
         g.add(head);
         const hood = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.18, 5), pri);
         hood.position.y = 1.02;
@@ -300,7 +315,7 @@ export class EntityRenderer {
         for (let wy = 0; wy < 2; wy++) {
           for (let side = 0; side < 4; side++) {
             const angle = (side / 4) * Math.PI * 2;
-            const win = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.05), new THREE.MeshStandardMaterial({ color: 0xffdd88, emissive: 0xffaa44, emissiveIntensity: 0.3 }));
+            const win = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.05), new THREE.MeshStandardMaterial({ color: 0xffdd88, emissive: 0xffaa44, emissiveIntensity: 0.6 }));
             win.position.set(Math.cos(angle) * s * 0.46, 1.8 + wy * 1.2, Math.sin(angle) * s * 0.46);
             win.lookAt(new THREE.Vector3(0, win.position.y, 0));
             g.add(win);

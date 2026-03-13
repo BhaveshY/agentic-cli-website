@@ -162,12 +162,20 @@ body {
   height: 38px;
 }
 .res-item {
-  display: flex; align-items: center; gap: 0.4rem;
-  padding: 0 1.2rem;
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0 1.4rem;
   height: 100%;
-  border-right: 1px solid rgba(100,120,150,0.15);
+  border-right: 1px solid rgba(140,160,190,0.25);
+  position: relative;
 }
 .res-item:last-child { border-right: none; }
+.res-item::after {
+  content: '';
+  position: absolute; right: 0; top: 20%; height: 60%;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(140,160,190,0.3), transparent);
+}
+.res-item:last-child::after { display: none; }
 .res-icon { font-size: 0.85rem; opacity: 0.9; }
 .res-val {
   font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600;

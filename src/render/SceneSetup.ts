@@ -42,7 +42,7 @@ export class SceneSetup {
   }
 
   private setupLighting(): void {
-    const hemi = new THREE.HemisphereLight(0x9dc4ff, 0x5a8a3c, 0.7);
+    const hemi = new THREE.HemisphereLight(0x9dc4ff, 0x5a8a3c, 0.85);
     this.scene.add(hemi);
 
     const sun = new THREE.DirectionalLight(0xffeedd, 1.8);
@@ -59,7 +59,7 @@ export class SceneSetup {
     sun.shadow.normalBias = 0.02;
     this.scene.add(sun);
 
-    const fill = new THREE.DirectionalLight(0x88aadd, 0.4);
+    const fill = new THREE.DirectionalLight(0x88aadd, 0.5);
     fill.position.set(-25, 15, -15);
     this.scene.add(fill);
 

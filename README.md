@@ -11,6 +11,38 @@ npm run dev
 
 Open `http://localhost:3000` and press **Enter** to start a game.
 
+### Agent mode
+
+This repository does **not** include a multiplayer join server. To let an external browser agent play the existing single-player match, open the client with URL parameters that enable the browser agent bridge:
+
+`http://localhost:3000/?agent=1&autostart=1&faction=IRONROOT`
+
+When `agent=1` is present, the page exposes `window.__AETHERIA_AGENT__` with stable state/action helpers:
+
+- `getSnapshot({ includeTiles?: boolean })`
+- `startGame(faction)`
+- `setSelection(ids)`
+- `findBuildLocation(buildingType)`
+- `placeBuilding(buildingType, tileX?, tileZ?)`
+- `trainUnit(unitType, buildingId?)`
+- `advanceAge(playerId?)`
+- `moveUnits(x, z, unitIds?)`
+- `gatherUnits(tileX, tileZ, unitIds?)`
+- `attackUnits(targetId, unitIds?)`
+- `stopUnits(unitIds?)`
+- `getHelp()`
+
+Example browser-console flow:
+
+```js
+const api = window.__AETHERIA_AGENT__;
+const snapshot = api.getSnapshot();
+const worker = snapshot.units.find((unit) => unit.owner === 0 && unit.type === 'WORKER');
+api.setSelection([worker.id]);
+const farmSpot = api.findBuildLocation('FARM');
+api.placeBuilding('FARM', farmSpot.tileX, farmSpot.tileZ);
+```
+
 ## The World of Aetheria
 
 In the shattered realm of Aetheria, floating islands drift through an endless sky, bound together by veins of raw magical energy called Aether. Two great civilizations have risen from the ancient ruins:

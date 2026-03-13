@@ -195,6 +195,13 @@ export class GameUI {
     });
   }
 
+  setSelectedFaction(faction: Faction): void {
+    this.container.querySelectorAll('.faction-btn').forEach((button) => {
+      const isSelected = button.getAttribute('data-faction') === faction;
+      button.classList.toggle('selected', isSelected);
+    });
+  }
+
   private showStoryIntro(faction: Faction, loreOnly = false): void {
     const storyText = document.getElementById('story-text')!;
     const storyFaction = document.getElementById('story-faction')!;

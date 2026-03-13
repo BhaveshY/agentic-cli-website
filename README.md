@@ -11,6 +11,51 @@ npm run dev
 
 Open `http://localhost:3000` and press **Enter** to start a game.
 
+### Agent mode
+
+This repository still does **not** include true multiplayer rooms or a remote join server. Instead, it now includes a lightweight **local session server + CLI** so an external agent can:
+
+1. create a control session from CLI,
+2. open the returned URL once in a browser,
+3. read compact game state through CLI,
+4. queue commands through CLI.
+
+Start the app stack:
+
+```bash
+npm run dev
+npm run server
+```
+
+Create a session:
+
+```bash
+npm run agent:cli -- create-session --faction IRONROOT --host http://localhost:3000
+```
+
+That returns JSON including a `joinUrl` like:
+
+`http://localhost:3000/?agent=1&autostart=1&faction=IRONROOT&session=...`
+
+Open that URL once in the browser. After that, drive the game from terminal commands:
+
+```bash
+npm run agent:cli -- state <sessionId>
+npm run agent:cli -- command <sessionId> place-building --building FARM
+npm run agent:cli -- command <sessionId> train-unit --unit WORKER
+npm run agent:cli -- command <sessionId> advance-age
+```
+
+Available CLI state views:
+
+- `summary` (default)
+- `units`
+- `buildings`
+- `notifications`
+- `full`
+
+The browser still exposes `window.__AETHERIA_AGENT__` for local debugging, but the recommended automation path is the session server + CLI so agents can fetch compact JSON instead of large browser snapshots.
+
 ## The World of Aetheria
 
 In the shattered realm of Aetheria, floating islands drift through an endless sky, bound together by veins of raw magical energy called Aether. Two great civilizations have risen from the ancient ruins:

@@ -20,6 +20,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*.ts", "server/**/*.ts"],
+  "include": ["src/**/*.ts", "server/**/*.ts", "scripts/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

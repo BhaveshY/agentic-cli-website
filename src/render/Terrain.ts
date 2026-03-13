@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { TerrainType, ResourceType, type Tile } from '../types';
+import { TerrainType, ResourceType } from '../types';
 import { MAP_SIZE, TILE_SIZE, TERRAIN_COLORS } from '../config';
 import { GameMap } from '../core/GameMap';
 

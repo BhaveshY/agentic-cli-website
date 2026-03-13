@@ -3,7 +3,7 @@ import {
   type Building, type Unit,
 } from '../types';
 import {
-  BUILDING_DEFS, MAP_SIZE, TICK_RATE, UNIT_DEFS, AI_TAUNTS,
+  BUILDING_DEFS, TICK_RATE, AI_TAUNTS,
 } from '../config';
 import { GameWorld } from '../core/GameState';
 
@@ -18,15 +18,21 @@ export class AIPlayer {
   private attackWaveSize = 3;
   private hasTaunted = false;
   private lastTauntTick = 0;
+  private lastDecisionTick = 0;
 
   constructor(world: GameWorld, playerId: number) {
     this.world = world;
     this.playerId = playerId;
   }
 
+  private getOpponentId(): number {
+    return this.playerId === 0 ? 1 : 0;
+  }
+
   update(): void {
     const tick = this.world.state.tick;
-    if (tick % TICK_RATE !== 0) return;
+    if (tick - this.lastDecisionTick < TICK_RATE) return;
+    this.lastDecisionTick = tick;
 
     const player = this.world.state.players[this.playerId];
     if (player.defeated) return;
@@ -36,15 +42,15 @@ export class AIPlayer {
     const workers = units.filter((u) => u.type === UnitType.WORKER);
     const military = units.filter((u) => u.type !== UnitType.WORKER);
 
-    this.manageWorkers(workers, buildings);
+    this.manageWorkers(workers);
     this.manageBuildings(buildings, workers, player.age);
     this.manageProduction(buildings, workers, military, player);
     this.manageArmy(military);
-    this.manageAgeUp(player, buildings);
-    this.manageTaunts(tick, military, buildings);
+    this.manageAgeUp(player);
+    this.manageTaunts(tick, military);
   }
 
-  private manageWorkers(workers: Unit[], buildings: Building[]): void {
+  private manageWorkers(workers: Unit[]): void {
     const idleWorkers = workers.filter((w) => w.state === UnitState.IDLE);
 
     for (const worker of idleWorkers) {
@@ -143,26 +149,35 @@ export class AIPlayer {
   private manageArmy(military: Unit[]): void {
     const tick = this.world.state.tick;
     const idleMilitary = military.filter((u) => u.state === UnitState.IDLE);
+    const opponentId = this.getOpponentId();
 
     if (idleMilitary.length >= this.attackWaveSize && tick - this.lastAttackTick > TICK_RATE * 20) {
       this.lastAttackTick = tick;
       this.attackWaveSize = Math.min(15, this.attackWaveSize + 2);
 
-      const enemyBuildings = this.world.getPlayerBuildings(0);
-      const enemyUnits = this.world.getPlayerUnits(0);
+      const enemyBuildings = this.world.getPlayerBuildings(opponentId);
+      const enemyUnits = this.world.getPlayerUnits(opponentId);
 
-      let target: { x: number; z: number } | null = null;
-      if (enemyBuildings.length > 0) {
-        const b = enemyBuildings[0];
-        const def = BUILDING_DEFS[b.type];
-        target = { x: b.tileX + def.size / 2, z: b.tileZ + def.size / 2 };
+      let targetPosition: { x: number; z: number } | null = null;
+      let targetBuildingId: number | null = null;
+      const priorityBuilding = enemyBuildings.find((b) => b.type === BuildingType.CITADEL) ?? enemyBuildings[0];
+      if (priorityBuilding) {
+        const building = priorityBuilding;
+        const def = BUILDING_DEFS[building.type];
+        targetPosition = { x: building.tileX + def.size / 2, z: building.tileZ + def.size / 2 };
+        targetBuildingId = building.id;
       } else if (enemyUnits.length > 0) {
-        target = { x: enemyUnits[0].x, z: enemyUnits[0].z };
+        targetPosition = { x: enemyUnits[0].x, z: enemyUnits[0].z };
       }
 
-      if (target) {
+      if (targetBuildingId !== null) {
+        this.world.commandAttack(
+          idleMilitary.map((u) => u.id),
+          targetBuildingId
+        );
+      } else if (targetPosition) {
         const ids = idleMilitary.map((u) => u.id);
-        this.world.commandMove(ids, target.x, target.z);
+        this.world.commandMove(ids, targetPosition.x, targetPosition.z);
 
         if (!this.hasTaunted) {
           this.hasTaunted = true;
@@ -191,16 +206,16 @@ export class AIPlayer {
     }
   }
 
-  private manageAgeUp(player: typeof this.world.state.players[0], buildings: Building[]): void {
+  private manageAgeUp(player: typeof this.world.state.players[0]): void {
     if (player.age < Age.ZENITH && this.world.state.tick > TICK_RATE * 60 * (player.age)) {
       this.world.advanceAge(this.playerId);
     }
   }
 
-  private manageTaunts(tick: number, military: Unit[], buildings: Building[]): void {
+  private manageTaunts(tick: number, military: Unit[]): void {
     if (tick - this.lastTauntTick < TICK_RATE * 45) return;
 
-    const playerUnits = this.world.getPlayerUnits(0);
+    const playerUnits = this.world.getPlayerUnits(this.getOpponentId());
     const myHp = military.reduce((sum, u) => sum + u.hp, 0);
     const enemyHp = playerUnits.reduce((sum, u) => sum + u.hp, 0);
 

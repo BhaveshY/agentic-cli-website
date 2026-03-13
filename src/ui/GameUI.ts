@@ -1,5 +1,5 @@
 import {
-  Age, BuildingType, Faction, GamePhase, ResourceType, UnitState, UnitType,
+  Age, BuildingType, Faction, ResourceType, UnitState, UnitType,
   type Building, type GameState, type Unit,
 } from '../types';
 import { BUILDING_DEFS, LORE, UNIT_DEFS, AGE_COSTS } from '../config';
@@ -192,6 +192,13 @@ export class GameUI {
       if (btn.id === 'btn-age-up') {
         this.onEvent('age_up');
       }
+    });
+  }
+
+  setSelectedFaction(faction: Faction): void {
+    this.container.querySelectorAll('.faction-btn').forEach((button) => {
+      const isSelected = button.getAttribute('data-faction') === faction;
+      button.classList.toggle('selected', isSelected);
     });
   }
 

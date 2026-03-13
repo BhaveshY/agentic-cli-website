@@ -3,7 +3,7 @@ import {
   BuildingType, Faction, UnitType, UnitState,
   type Building, type Unit,
 } from '../types';
-import { BUILDING_DEFS, FACTION_COLORS, TILE_SIZE, UNIT_DEFS } from '../config';
+import { BUILDING_DEFS, FACTION_COLORS, TILE_SIZE } from '../config';
 
 interface EntityVisual {
   group: THREE.Group;
@@ -251,7 +251,6 @@ export class EntityRenderer {
   private buildBuildingMesh(type: BuildingType, colors: { primary: number; secondary: number; accent: number }): THREE.Group {
     const g = new THREE.Group();
     const pri = new THREE.MeshStandardMaterial({ color: colors.primary, roughness: 0.55, metalness: 0.15, flatShading: true });
-    const sec = new THREE.MeshStandardMaterial({ color: colors.secondary, roughness: 0.55, metalness: 0.15, flatShading: true });
     const acc = new THREE.MeshStandardMaterial({ color: colors.accent, roughness: 0.2, metalness: 0.35, flatShading: true });
     const stoneLight = new THREE.MeshStandardMaterial({ color: 0xa0a098, roughness: 0.85, flatShading: true });
     const stoneDark = new THREE.MeshStandardMaterial({ color: 0x787870, roughness: 0.9, flatShading: true });
@@ -735,7 +734,13 @@ export class EntityRenderer {
     }
   }
 
-  showBuildGhost(type: BuildingType, tileX: number, tileZ: number, valid: boolean): void {
+  showBuildGhost(
+    type: BuildingType,
+    tileX: number,
+    tileZ: number,
+    valid: boolean,
+    tiles?: { elevation: number }[][]
+  ): void {
     this.hideBuildGhost();
 
     const def = BUILDING_DEFS[type];
@@ -747,9 +752,12 @@ export class EntityRenderer {
       opacity: 0.4,
     });
     this.buildGhostMesh = new THREE.Mesh(geo, mat);
+    const groundY = tiles
+      ? this.getTerrainHeight(tileX + def.size / 2, tileZ + def.size / 2, tiles)
+      : 0;
     this.buildGhostMesh.position.set(
       (tileX + def.size / 2) * TILE_SIZE,
-      0.2,
+      groundY + 0.2,
       (tileZ + def.size / 2) * TILE_SIZE
     );
     this.buildingGroup.add(this.buildGhostMesh);

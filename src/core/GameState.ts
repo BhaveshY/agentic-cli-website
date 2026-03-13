@@ -5,7 +5,7 @@ import {
 } from '../types';
 import {
   AGGRO_RANGE, BUILDING_DEFS, MAP_SIZE, STARTING_RESOURCES,
-  TICK_RATE, TILE_SIZE, UNIT_DEFS, WORKER_CARRY_CAPACITY, WORKER_GATHER_RATE,
+  TICK_RATE, UNIT_DEFS, WORKER_CARRY_CAPACITY, WORKER_GATHER_RATE,
   AGE_COSTS,
 } from '../config';
 import { GameMap } from './GameMap';
@@ -16,7 +16,7 @@ export class GameWorld {
   state: GameState;
   map: GameMap;
   private listeners: GameEventCb[] = [];
-  private tickTimer: ReturnType<typeof setInterval> | null = null;
+  private tickAccumulator = 0;
 
   constructor() {
     this.map = new GameMap(Math.floor(Math.random() * 100000));
@@ -129,6 +129,45 @@ export class GameWorld {
       unit.path = this.map.findPath(unit.x, unit.z, bestTarget.x, bestTarget.z);
       unit.pathIndex = 0;
     }
+  }
+
+  private hasRequiredResources(
+    player: Player,
+    cost: Partial<Record<ResourceType, number>>
+  ): boolean {
+    for (const [res, amount] of Object.entries(cost) as [ResourceType, number][]) {
+      if ((player.resources[res] || 0) < amount) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private spendResources(player: Player, cost: Partial<Record<ResourceType, number>>): void {
+    for (const [res, amount] of Object.entries(cost) as [ResourceType, number][]) {
+      player.resources[res] -= amount;
+    }
+  }
+
+  private getQueuedPopulation(owner: number): number {
+    let queuedPopulation = 0;
+
+    for (const building of this.state.buildings.values()) {
+      if (building.owner !== owner) {
+        continue;
+      }
+
+      for (const queuedUnitType of building.productionQueue) {
+        queuedPopulation += UNIT_DEFS[queuedUnitType].popCost;
+      }
+    }
+
+    return queuedPopulation;
+  }
+
+  private hasPopulationCapacity(owner: number, popCost: number): boolean {
+    const player = this.state.players[owner];
+    return player.population + this.getQueuedPopulation(owner) + popCost <= player.maxPopulation;
   }
 
   createBuilding(
@@ -254,18 +293,16 @@ export class GameWorld {
     }
   }
 
-  commandBuild(unitId: number, buildingType: BuildingType, tileX: number, tileZ: number): void {
+  commandBuild(unitId: number, buildingType: BuildingType, tileX: number, tileZ: number): boolean {
     const unit = this.state.units.get(unitId);
-    if (!unit) return;
+    if (!unit) return false;
 
     const def = BUILDING_DEFS[buildingType];
     const player = this.state.players[unit.owner];
 
-    for (const [res, amount] of Object.entries(def.cost) as [ResourceType, number][]) {
-      if ((player.resources[res] || 0) < amount) return;
-    }
+    if (!this.hasRequiredResources(player, def.cost)) return false;
 
-    if (!this.map.canPlaceBuilding(tileX, tileZ, def.size)) return;
+    if (!this.map.canPlaceBuilding(tileX, tileZ, def.size)) return false;
 
     if (def.requiresResource) {
       let hasResource = false;
@@ -281,22 +318,22 @@ export class GameWorld {
           }
         }
       }
-      if (!hasResource) return;
-    }
-
-    for (const [res, amount] of Object.entries(def.cost) as [ResourceType, number][]) {
-      player.resources[res] -= amount;
+      if (!hasResource) return false;
     }
 
     const building = this.createBuilding(buildingType, unit.owner, tileX, tileZ);
-    if (building) {
-      unit.buildTargetId = building.id;
-      unit.state = UnitState.MOVING;
-      unit.targetX = tileX;
-      unit.targetZ = tileZ;
-      unit.path = this.map.findPath(unit.x, unit.z, tileX, tileZ);
-      unit.pathIndex = 0;
+    if (!building) {
+      return false;
     }
+
+    this.spendResources(player, def.cost);
+    unit.buildTargetId = building.id;
+    unit.state = UnitState.MOVING;
+    unit.targetX = tileX;
+    unit.targetZ = tileZ;
+    unit.path = this.map.findPath(unit.x, unit.z, tileX, tileZ);
+    unit.pathIndex = 0;
+    return true;
   }
 
   trainUnit(buildingId: number, unitType: UnitType): boolean {
@@ -310,15 +347,11 @@ export class GameWorld {
     const player = this.state.players[building.owner];
 
     if (uDef.minAge > player.age) return false;
+    if (!this.hasPopulationCapacity(building.owner, uDef.popCost)) return false;
 
-    for (const [res, amount] of Object.entries(uDef.cost) as [ResourceType, number][]) {
-      if ((player.resources[res] || 0) < amount) return false;
-    }
+    if (!this.hasRequiredResources(player, uDef.cost)) return false;
 
-    for (const [res, amount] of Object.entries(uDef.cost) as [ResourceType, number][]) {
-      player.resources[res] -= amount;
-    }
-
+    this.spendResources(player, uDef.cost);
     building.productionQueue.push(unitType);
     return true;
   }
@@ -330,14 +363,9 @@ export class GameWorld {
     const nextAge = (player.age + 1) as Age;
     const costs = AGE_COSTS[nextAge];
 
-    for (const [res, amount] of Object.entries(costs) as [ResourceType, number][]) {
-      if ((player.resources[res] || 0) < (amount || 0)) return false;
-    }
+    if (!this.hasRequiredResources(player, costs)) return false;
 
-    for (const [res, amount] of Object.entries(costs) as [ResourceType, number][]) {
-      player.resources[res] -= amount || 0;
-    }
-
+    this.spendResources(player, costs);
     player.age = nextAge;
     this.addNotification(
       `${player.isAI ? 'Enemy' : 'You'} advanced to Age ${nextAge}!`,
@@ -348,21 +376,35 @@ export class GameWorld {
   }
 
   private startTicking(): void {
-    if (this.tickTimer) clearInterval(this.tickTimer);
-    this.tickTimer = setInterval(() => this.tick(), 1000 / TICK_RATE);
+    this.tickAccumulator = 0;
   }
 
   stopTicking(): void {
-    if (this.tickTimer) {
-      clearInterval(this.tickTimer);
-      this.tickTimer = null;
+    this.tickAccumulator = 0;
+  }
+
+  advance(elapsedSeconds: number): void {
+    if (this.state.phase !== GamePhase.PLAYING || elapsedSeconds <= 0) return;
+
+    this.tickAccumulator += elapsedSeconds;
+    const step = 1 / TICK_RATE;
+    let steps = 0;
+    const maxSteps = TICK_RATE * 5;
+
+    while (this.tickAccumulator >= step && steps < maxSteps) {
+      this.tickAccumulator -= step;
+      this.tick();
+      steps++;
+    }
+
+    if (steps === maxSteps) {
+      this.tickAccumulator = 0;
     }
   }
 
   private tick(): void {
     if (this.state.phase !== GamePhase.PLAYING) return;
     this.state.tick++;
-
     this.updateUnits();
     this.updateBuildings();
     this.updateCombat();
@@ -638,6 +680,7 @@ export class GameWorld {
     const def = UNIT_DEFS[unit.type];
 
     let nearestEnemy: Unit | null = null;
+    let nearestEnemyBuilding: Building | null = null;
     let nearestDist = AGGRO_RANGE;
 
     for (const other of this.state.units.values()) {
@@ -655,6 +698,24 @@ export class GameWorld {
       return;
     }
 
+    for (const building of this.state.buildings.values()) {
+      if (building.owner === unit.owner || building.hp <= 0) continue;
+      const bDef = BUILDING_DEFS[building.type];
+      const centerX = building.tileX + bDef.size / 2;
+      const centerZ = building.tileZ + bDef.size / 2;
+      const dist = Math.hypot(unit.x - centerX, unit.z - centerZ);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestEnemyBuilding = building;
+      }
+    }
+
+    if (nearestEnemyBuilding) {
+      unit.state = UnitState.ATTACKING;
+      unit.attackTargetId = nearestEnemyBuilding.id;
+      return;
+    }
+
     if (def.canGather && unit.gatherTargetX < 0) {
       this.autoAssignWorker(unit);
     }
@@ -668,17 +729,18 @@ export class GameWorld {
       if (building.productionQueue.length > 0) {
         const unitType = building.productionQueue[0];
         const uDef = UNIT_DEFS[unitType];
-        building.productionProgress += 100 / uDef.trainTime;
+        building.productionProgress = Math.min(
+          100,
+          building.productionProgress + 100 / uDef.trainTime
+        );
 
         if (building.productionProgress >= 100) {
-          building.productionProgress = 0;
-          building.productionQueue.shift();
-
-          const bDef = BUILDING_DEFS[building.type];
           const spawnX = building.rallyX;
           const spawnZ = building.rallyZ;
           const newUnit = this.createUnit(unitType, building.owner, spawnX, spawnZ);
           if (newUnit) {
+            building.productionProgress = 0;
+            building.productionQueue.shift();
             this.emit('unit_trained', { building, unit: newUnit });
           }
         }

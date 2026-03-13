@@ -18,6 +18,7 @@ export class AIPlayer {
   private attackWaveSize = 3;
   private hasTaunted = false;
   private lastTauntTick = 0;
+  private lastDecisionTick = 0;
 
   constructor(world: GameWorld, playerId: number) {
     this.world = world;
@@ -30,7 +31,8 @@ export class AIPlayer {
 
   update(): void {
     const tick = this.world.state.tick;
-    if (tick % TICK_RATE !== 0) return;
+    if (tick - this.lastDecisionTick < TICK_RATE) return;
+    this.lastDecisionTick = tick;
 
     const player = this.world.state.players[this.playerId];
     if (player.defeated) return;

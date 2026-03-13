@@ -590,18 +590,42 @@ export class EntityRenderer {
   }
 
   showMoveMarker(worldX: number, worldZ: number): void {
-    const geo = new THREE.RingGeometry(0.3, 0.5, 16);
-    const mat = new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
-    const marker = new THREE.Mesh(geo, mat);
-    marker.rotation.x = -Math.PI / 2;
-    marker.position.set(worldX, 0.1, worldZ);
-    this.unitGroup.add(marker);
-    this.moveMarkers.push(marker);
+    const group = new THREE.Group();
+    group.position.set(worldX, 0.1, worldZ);
+    group.rotation.x = -Math.PI / 2;
+
+    const outerRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.35, 0.5, 20),
+      new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+    );
+    group.add(outerRing);
+
+    const innerRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.1, 0.18, 12),
+      new THREE.MeshBasicMaterial({ color: 0x88ff88, transparent: true, opacity: 0.6, side: THREE.DoubleSide })
+    );
+    group.add(innerRing);
+
+    for (let i = 0; i < 4; i++) {
+      const angle = (i / 4) * Math.PI * 2;
+      const tick = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.04, 0.12),
+        new THREE.MeshBasicMaterial({ color: 0x66ff66, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
+      );
+      tick.position.set(Math.cos(angle) * 0.42, Math.sin(angle) * 0.42, 0);
+      tick.rotation.z = angle;
+      group.add(tick);
+    }
+
+    this.unitGroup.add(group);
+    const markerRef = outerRing;
+    this.moveMarkers.push(markerRef);
+    markerRef.userData.parentGroup = group;
 
     setTimeout(() => {
-      this.unitGroup.remove(marker);
-      this.moveMarkers = this.moveMarkers.filter((m) => m !== marker);
-    }, 1200);
+      this.unitGroup.remove(group);
+      this.moveMarkers = this.moveMarkers.filter((m) => m !== markerRef);
+    }, 1500);
   }
 
   getTerrainHeight(x: number, z: number, tiles: { elevation: number }[][]): number {
@@ -673,6 +697,11 @@ export class EntityRenderer {
 
       const selected = selectedIds.has(id);
       vis.selectionRing.visible = selected;
+      if (selected) {
+        const pulse = 1.0 + Math.sin(t * 4) * 0.08;
+        vis.selectionRing.scale.setScalar(pulse);
+        (vis.selectionRing.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(t * 3) * 0.2;
+      }
 
       const hpRatio = unit.hp / unit.maxHp;
       const showHealth = selected || hpRatio < 1;
@@ -690,8 +719,14 @@ export class EntityRenderer {
       }
 
       for (const marker of this.moveMarkers) {
-        (marker.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(t * 6) * 0.3;
-        marker.scale.setScalar(1 + Math.sin(t * 4) * 0.15);
+        (marker.material as THREE.MeshBasicMaterial).opacity = 0.4 + Math.sin(t * 6) * 0.3;
+        const parentGroup = marker.userData.parentGroup as THREE.Group | undefined;
+        if (parentGroup) {
+          parentGroup.scale.setScalar(1 + Math.sin(t * 5) * 0.12);
+          parentGroup.rotation.z = t * 1.5;
+        } else {
+          marker.scale.setScalar(1 + Math.sin(t * 4) * 0.15);
+        }
       }
     }
   }
@@ -718,6 +753,11 @@ export class EntityRenderer {
 
       const selected = selectedIds.has(id);
       vis.selectionRing.visible = selected;
+      if (selected) {
+        const pulse = 1.0 + Math.sin(t * 3.5) * 0.06;
+        vis.selectionRing.scale.setScalar(pulse);
+        (vis.selectionRing.material as THREE.MeshBasicMaterial).opacity = 0.4 + Math.sin(t * 2.5) * 0.15;
+      }
 
       if (!building.isComplete) {
         const progress = building.buildProgress / 100;

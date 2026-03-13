@@ -126,7 +126,7 @@ export class GameUI {
     });
 
     const shortcuts = this.el('div', 'shortcuts-hint');
-    shortcuts.innerHTML = 'Q/E Rotate  •  WASD Pan  •  Scroll Zoom  •  S Stop  •  Esc Deselect';
+    shortcuts.innerHTML = 'Q/E Rotate  •  WASD Pan  •  Scroll Zoom  •  S Stop  •  Esc Deselect  •  Space Home  •  Tab Cycle';
 
     hud.append(this.resourceBar, this.notificationArea, this.selectionPanel, minimapWrap, shortcuts);
     return hud;
@@ -410,13 +410,24 @@ export class GameUI {
   }
 
   addNotification(text: string, type: string): void {
-    const notif = this.el('div', `notification ${type}`, text);
+    const iconMap: Record<string, string> = {
+      combat: '⚔️',
+      age: '🏛️',
+      info: '📢',
+      warning: '⚠️',
+    };
+    const icon = iconMap[type] || '📢';
+    const notif = this.el('div', `notification ${type}`);
+    notif.innerHTML = `<span class="notif-icon">${icon}</span><span class="notif-text">${text}</span>`;
     this.notificationArea.appendChild(notif);
     setTimeout(() => notif.classList.add('show'), 10);
     setTimeout(() => {
       notif.classList.remove('show');
       setTimeout(() => notif.remove(), 500);
     }, 5000);
+    if (this.notificationArea.children.length > 5) {
+      this.notificationArea.removeChild(this.notificationArea.children[0]);
+    }
   }
 
   private handleMinimapClick(e: MouseEvent): void {
@@ -440,12 +451,26 @@ export class GameUI {
     for (let x = 0; x < state.mapWidth; x++) {
       for (let z = 0; z < state.mapHeight; z++) {
         const tile = state.tiles[x][z];
+        const elev = tile.elevation || 0;
+        const bright = 0.85 + elev * 0.15;
         switch (tile.terrain) {
-          case 'WATER': ctx.fillStyle = '#2a6496'; break;
-          case 'FOREST': ctx.fillStyle = '#2d5a1e'; break;
-          case 'MOUNTAIN': ctx.fillStyle = '#6a6a5a'; break;
-          case 'SAND': ctx.fillStyle = '#b8a86a'; break;
-          default: ctx.fillStyle = '#4a7a2c'; break;
+          case 'WATER': {
+            const waterDepth = Math.max(0, 0.4 - elev * 0.8);
+            const r = Math.round(0x1a + waterDepth * 30);
+            const g = Math.round(0x6f + waterDepth * 15);
+            const b = Math.round(0xa0 + waterDepth * 20);
+            ctx.fillStyle = `rgb(${r},${g},${b})`;
+            break;
+          }
+          case 'FOREST': ctx.fillStyle = `rgb(${Math.round(0x2d * bright)},${Math.round(0x5a * bright)},${Math.round(0x1e * bright)})`; break;
+          case 'MOUNTAIN': {
+            const snow = elev > 0.65 ? Math.min(1, (elev - 0.65) * 3) : 0;
+            const gr = Math.round(0x6a + snow * 100);
+            ctx.fillStyle = `rgb(${gr},${gr},${Math.round(0x5a + snow * 100)})`;
+            break;
+          }
+          case 'SAND': ctx.fillStyle = `rgb(${Math.round(0xb8 * bright)},${Math.round(0xa8 * bright)},${Math.round(0x6a * bright)})`; break;
+          default: ctx.fillStyle = `rgb(${Math.round(0x4a * bright)},${Math.round(0x7a * bright)},${Math.round(0x2c * bright)})`; break;
         }
         if (tile.hasResource === ResourceType.AETHER) ctx.fillStyle = '#7b68ee';
         if (tile.hasResource === ResourceType.STONE) ctx.fillStyle = '#888880';

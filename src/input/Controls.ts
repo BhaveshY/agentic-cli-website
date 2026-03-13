@@ -21,6 +21,8 @@ export class InputControls {
   private mouseX = 0;
   private mouseY = 0;
   private selectionBox: HTMLDivElement | null = null;
+  private lastClickTime = 0;
+  private lastClickId: number | null = null;
 
   private panSpeed = 0.8;
   private zoomSpeed = 2;
@@ -191,6 +193,33 @@ export class InputControls {
       }
     }
 
+    const now = performance.now();
+    const isDoubleClick = clickedEntityId !== null &&
+      clickedEntityId === this.lastClickId &&
+      (now - this.lastClickTime) < 350;
+    this.lastClickTime = now;
+    this.lastClickId = clickedEntityId;
+
+    if (isDoubleClick && clickedEntityId !== null) {
+      const clickedUnit = this.world.state.units.get(clickedEntityId);
+      if (clickedUnit && clickedUnit.owner === 0) {
+        this.world.state.selectedIds.clear();
+        for (const [id, unit] of this.world.state.units) {
+          if (unit.owner === 0 && unit.type === clickedUnit.type && unit.state !== UnitState.DEAD) {
+            const screenPos = new THREE.Vector3(unit.x * TILE_SIZE, 0.5, unit.z * TILE_SIZE);
+            screenPos.project(this.scene.camera);
+            const sx = (screenPos.x + 1) / 2 * window.innerWidth;
+            const sy = (-screenPos.y + 1) / 2 * window.innerHeight;
+            if (sx >= 0 && sx <= window.innerWidth && sy >= 0 && sy <= window.innerHeight) {
+              this.world.state.selectedIds.add(id);
+            }
+          }
+        }
+        this.onEvent('selection_changed');
+        return;
+      }
+    }
+
     if (!e.shiftKey) {
       this.world.state.selectedIds.clear();
     }
@@ -310,7 +339,7 @@ export class InputControls {
       }
     }
 
-    if (e.key === 's' && !e.ctrlKey) {
+    if (e.key === 's' && !e.ctrlKey && !e.shiftKey) {
       for (const id of this.world.state.selectedIds) {
         const unit = this.world.state.units.get(id);
         if (unit) {
@@ -318,6 +347,46 @@ export class InputControls {
           unit.path = [];
           unit.attackTargetId = null;
         }
+      }
+    }
+
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      this.world.state.selectedIds.clear();
+      this.onEvent('selection_changed');
+    }
+
+    if (e.key === ' ') {
+      e.preventDefault();
+      const citadel = [...this.world.state.buildings.values()].find(
+        b => b.owner === 0 && b.type === BuildingType.CITADEL && b.hp > 0
+      );
+      if (citadel) {
+        const def = BUILDING_DEFS[citadel.type];
+        this.scene.cameraTarget.set(
+          (citadel.tileX + def.size / 2) * TILE_SIZE,
+          0,
+          (citadel.tileZ + def.size / 2) * TILE_SIZE
+        );
+        this.scene.updateCameraPosition();
+      }
+    }
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const ownUnits = [...this.world.state.units.entries()]
+        .filter(([, u]) => u.owner === 0 && u.state !== UnitState.DEAD);
+      if (ownUnits.length > 0) {
+        const currentIds = [...this.world.state.selectedIds];
+        const currentIdx = currentIds.length > 0
+          ? ownUnits.findIndex(([id]) => id === currentIds[currentIds.length - 1])
+          : -1;
+        const nextIdx = (currentIdx + 1) % ownUnits.length;
+        this.world.state.selectedIds.clear();
+        this.world.state.selectedIds.add(ownUnits[nextIdx][0]);
+        const unit = ownUnits[nextIdx][1];
+        this.scene.cameraTarget.set(unit.x * TILE_SIZE, 0, unit.z * TILE_SIZE);
+        this.scene.updateCameraPosition();
+        this.onEvent('selection_changed');
       }
     }
   }
